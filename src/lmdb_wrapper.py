@@ -71,6 +71,13 @@ class LMDBWrapper:
         movie['name'] (using rdfs:label)        
         movie['freebase']
         movie['date'] (optional)
+        
+        INFO: 
+        I also tried to get the actors of film by adding
+        ?instance movie:actor ?actor .
+        to the SPARQL query. The endpoint just gave me just one actor per
+        film which was not what I expected, so I queried the actors in 
+        a dedicated query.
         """
         result = []
         
@@ -87,6 +94,8 @@ class LMDBWrapper:
             LIMIT %i
         """ % (Config.PREFIXES, portal, offset, limit)        
         
+        #print query
+        
         self._sparql.setQuery(query)
         self._sparql.setReturnFormat(JSON)        
         
@@ -98,3 +107,30 @@ class LMDBWrapper:
                           'date' : film['date']['value'] if ('date' in film) else ''})
             
         return result
+    
+    def get_actors_by_film(self, portal, filmid):
+        """
+        Returns all actors associated with the given film. The actors must have
+        an foaf:page link to the given portal!
+        """
+        result = []
+        query = """
+            %s
+            SELECT ?actorid
+            WHERE {
+                ?x movie:filmid "%i"^^xsd:int ;
+                    movie:actor ?actor .
+                ?actor foaf:page ?page FILTER regex(str(?page), "^%s", "i") .
+                ?actor movie:actor_actorid ?actorid .
+            }
+        """ % (Config.PREFIXES, filmid, portal)
+        
+        print query
+        
+        self._sparql.setQuery(query)
+        self._sparql.setReturnFormat(JSON)
+        
+        #for actor in self._sparql.query().convert()["results"]["bindings"]:
+        #    result.append(actor['actorid']['value'])
+            
+        return [actor['actorid']['value'] for actor in self._sparql.query().convert()["results"]["bindings"]]
