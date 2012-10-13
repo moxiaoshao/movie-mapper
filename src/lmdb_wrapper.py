@@ -26,7 +26,7 @@ class LMDBWrapper:
         results = self._sparql.query().convert()
     
         for result in results["results"]["bindings"]:
-            return result[".1"]["value"]
+            return int(result[".1"]["value"])
         
     def get_actors(self, portal, offset = 0, limit = 10):
         """
@@ -44,8 +44,7 @@ class LMDBWrapper:
             WHERE {
                 ?instance movie:actor_actorid ?actorid .
                 ?instance movie:actor_name ?name .
-                ?instance foaf:page ?link FILTER regex(str(?link), "^%s", "i") .
-                ?instance foaf:page ?page .
+                ?instance foaf:page ?page FILTER regex(str(?page), "^%s", "i") .
                 ?instance rdf:type movie:actor .
             }
             OFFSET %i
@@ -69,43 +68,33 @@ class LMDBWrapper:
         Returns a list of dicts which contain film infos as
         
         movie['filmid']
-        movie['name'] (using rdfs:label)
-        movie['actors']
+        movie['name'] (using rdfs:label)        
         movie['freebase']
         movie['date'] (optional)
         """
-        result = {}
+        result = []
         
         query = """
             %s
-            SELECT ?filmid ?name ?actor ?page ?date
+            SELECT *
             WHERE {
-                ?instance foaf:page ?link FILTER regex(str(?link), "^%s", "i") .
+                ?instance foaf:page ?page FILTER regex(str(?page), "^%s", "i") .
                 ?instance movie:filmid ?filmid .
-                ?instance rdfs:label ?name .
-                ?instance movie:actor ?actor .
-                ?instance foaf:page ?page .
+                ?instance rdfs:label ?name .                
                 OPTIONAL { ?instance movie:initial_release_date ?date . }
-            }
+            }            
             OFFSET %i
             LIMIT %i
-        """ % (Config.PREFIXES, portal, offset, limit)
+        """ % (Config.PREFIXES, portal, offset, limit)        
         
         self._sparql.setQuery(query)
-        self._sparql.setReturnFormat(JSON)
+        self._sparql.setReturnFormat(JSON)        
         
         for film in self._sparql.query().convert()["results"]["bindings"]:
-            id = film['filmid']['value']
-            if id in result:
-                # add the actor to the actors list
-                print 'appending'
-                result[id]['actors'].append(film['actor']['value'])                    
-            else:
-                # create a new result entry
-                result[id] = {'filmid' : film['filmid']['value'],
-                              'name' : film['name']['value'],
-                              'freebase' : film['page']['value'],
-                              'actors' : [film['actor']['value']],
-                              'date' : film['date']['value'] if ('date' in film) else ''}
+            # create a new result entry
+            result.append({'filmid' : film['filmid']['value'],
+                          'name' : film['name']['value'],
+                          'freebase' : film['page']['value'],                          
+                          'date' : film['date']['value'] if ('date' in film) else ''})
             
-        return result.values()
+        return result

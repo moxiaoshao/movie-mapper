@@ -14,9 +14,11 @@ lmdb = LMDBWrapper(sparql_lmdb)
 
 
 def get_and_persist_lmdb_actors(f):
+    
     try:
-        # actorCount = lmdb.get_page_count(Portal.FREEBASE, LMDBMovieConcept.ACTOR)
-        actorCount = 100
+        actorCount = lmdb.get_page_count(Portal.FREEBASE, LMDBMovieConcept.ACTOR)
+        print "loading %i actors from lmdb" % actorCount
+                
         with open(f, 'w') as fOut:
             for i in range(0, actorCount, Config.PAGE_SIZE):
                 print 'getting actors from %i to %i' % (i, (i + Config.PAGE_SIZE))
@@ -34,20 +36,21 @@ def get_and_persist_lmdb_actors(f):
         print str(queryEx)
     
 def get_and_persist_lmdb_films(f):
+    print "loading films from lmdb"
     try:
-        # movieCount = lmdb.get_page_count(Portal.FREEBASE, LMDBMovieConcept.FILM)
-        movieCount = 100
+        filmCount = lmdb.get_page_count(Portal.FREEBASE, LMDBMovieConcept.FILM)
+        print "loading %i films from lmdb" % filmCount
+                
         with open(f, 'w') as fOut:
-            for i in range(0, movieCount, Config.PAGE_SIZE):
+            for i in range(0, filmCount, Config.PAGE_SIZE):
                 print 'getting films from %i to %i' % (i, (i + Config.PAGE_SIZE))
                 films = lmdb.get_films(Portal.FREEBASE, 
                                        i, #offset 
                                        Config.PAGE_SIZE)
                 
                 for film in films:
-                    fOut.write("%s;%s;%s;%s;%s\n" % (film['filmid'],
-                                                     film['name'],
-                                                     film['actors'],
+                    fOut.write("%s;%s;%s;%s\n" % (film['filmid'],
+                                                     film['name'],                                                     
                                                      film['date'],
                                                      film['freebase']))
                 fOut.flush()
@@ -56,4 +59,4 @@ def get_and_persist_lmdb_films(f):
 
 # hit and run
 #get_and_persist_lmdb_actors('../out/ldmb_actors')
-get_and_persist_lmdb_films('../out/lmdb_films')
+#get_and_persist_lmdb_films('../out/lmdb_films')
