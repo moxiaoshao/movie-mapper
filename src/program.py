@@ -118,10 +118,10 @@ def get_and_persist_lmdb_actors_by_film(fin, fout):
                                        ['filmid', 'name', 'actors', 'date', 'freebase_guid'],
                                        delimiter=';')
             csvwriter.writeheader()
-            n = float(len(film))
+            n = float(len(films))
             i = 0            
             for film in films:
-                if i % 100 == 0:
+                if i % Config.PAGE_SIZE == 0:
                     print "processed %i of %i films" % (i, n) 
                 sys.stdout.flush()
                 loaded = False
