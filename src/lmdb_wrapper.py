@@ -1,5 +1,4 @@
 from SPARQLWrapper import JSON
-from json import dumps
 
 from utils import Config
 
@@ -28,13 +27,13 @@ class LMDBWrapper:
         for result in results["results"]["bindings"]:
             return int(result[".1"]["value"])
         
-    def get_actors(self, portal, offset = 0, limit = 10):
+    def get_actors(self, portal, offset=0, limit=10):
         """
         Returns a list of dicts which contain actor infos as
 
         actor['actorid']
         actor['name']
-        actor['freebase']
+        actor['freebase_guid']
         """
         result = []
         
@@ -56,21 +55,21 @@ class LMDBWrapper:
     
         for actor in self._sparql.query().convert()["results"]["bindings"]:
             result.append({
-                           'actorid'    : actor['actorid']['value'],
-                           'name'       : actor['name']['value'],
-                           'freebase'   : actor['page']['value']
+                           'actorid'        : actor['actorid']['value'],
+                           'name'           : actor['name']['value'].encode('utf-8'),
+                           'freebase_guid'  : actor['page']['value'].split('/')[-1]
                            })
             
         return result
 
-    def get_films(self, portal, offset = 0, limit = 10):
+    def get_films(self, portal, offset=0, limit=10):
         """
         Returns a list of dicts which contain film infos as
         
         movie['filmid']
         movie['name'] (using rdfs:label)        
-        movie['freebase']
-        movie['date'] (optional)
+        movie['freebase_guid']
+        movie['date'] (optional, it's an empty string if not found)
         
         INFO: 
         I also tried to get the actors of film by adding
@@ -102,8 +101,8 @@ class LMDBWrapper:
         for film in self._sparql.query().convert()["results"]["bindings"]:
             # create a new result entry
             result.append({'filmid' : film['filmid']['value'],
-                          'name' : film['name']['value'],
-                          'freebase' : film['page']['value'],                          
+                          'name' : film['name']['value'].encode('utf-8'),
+                          'freebase_guid' : film['page']['value'].split('/')[-1],                          
                           'date' : film['date']['value'] if ('date' in film) else ''})
             
         return result
@@ -113,7 +112,6 @@ class LMDBWrapper:
         Returns all actors associated with the given film. The actors must have
         an foaf:page link to the given portal!
         """
-        result = []
         query = """
             %s
             SELECT ?actorid
@@ -125,12 +123,9 @@ class LMDBWrapper:
             }
         """ % (Config.PREFIXES, filmid, portal)
         
-        print query
+        #print query
         
         self._sparql.setQuery(query)
         self._sparql.setReturnFormat(JSON)
-        
-        #for actor in self._sparql.query().convert()["results"]["bindings"]:
-        #    result.append(actor['actorid']['value'])
             
         return [actor['actorid']['value'] for actor in self._sparql.query().convert()["results"]["bindings"]]
