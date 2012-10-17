@@ -1,0 +1,8 @@
+lmdb_freebase_mapper
+--------------------
+
+Just a small collection of scripts to load movies and actors from lmdb which have a foaf:page relation to the freebase portal. Each subgraph is selected and persisted locally, the result is a reference mapping and the single datasets can be used to evaluate different matching strategies.
+
+This is my first project written in python so ... u know :)
+
+And if someone wants to use the scripts or parts of it, feel free to do so.
