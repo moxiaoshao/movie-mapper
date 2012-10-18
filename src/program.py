@@ -10,15 +10,6 @@ from utils import Config, Portal, SPARQLEndpoints, LMDBMovieConcept
 from freebase_wrapper import FreebaseWrapper
 from csv import DictReader, DictWriter
 
-# connect to LMDB
-sparql_lmdb = SPARQLWrapper(SPARQLEndpoints.LMDB)
-lmdb = LMDBWrapper(sparql_lmdb)
-
-# connect to freebase
-freebase_endpoint = discovery.build('freebase',
-                                    'v1',
-                                    developerKey=Config.GOOGLE_API_KEY)
-freebase = FreebaseWrapper(freebase_endpoint)
 
 def get_and_persist_lmdb_actors(f):
     """
@@ -118,12 +109,11 @@ def get_and_persist_lmdb_actors_by_film(fin, fout):
                                        ['filmid', 'name', 'actors', 'date', 'freebase_guid'],
                                        delimiter=';')
             csvwriter.writeheader()
-            n = float(len(films))
+            n = len(films)
             i = 0            
             for film in films:
                 if i % Config.PAGE_SIZE == 0:
                     print "processed %i of %i films" % (i, n) 
-                sys.stdout.flush()
                 loaded = False
                 delay = 1
                 while not loaded:
@@ -215,17 +205,38 @@ def create_mappings(source_file, map_file, key_map):
             
 # hit and run
 
-get_and_persist_lmdb_actors(Config.LMDB_ACTORS_FILE)
-get_and_persist_lmdb_films(Config.LMDB_FILMS_TMPFILE)
-get_and_persist_lmdb_actors_by_film(Config.LMDB_FILMS_TMPFILE,
-                                    Config.LMDB_FILMS_FILE)
-get_and_persist_freebase_actors(Config.LMDB_ACTORS_FILE,
-                                Config.FREEBASE_ACTORS_FILE)
-get_and_persist_freebase_films(Config.LMDB_FILMS_FILE,
-                               Config.FREEBASE_FILMS_FILE)
-create_mappings(Config.LMDB_ACTORS_FILE,
-                Config.ACTOR_MAPPING_FILE,
-                {'actorid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
-create_mappings(Config.LMDB_FILMS_FILE,
-                Config.FILM_MAPPING_FILE,
-                {'filmid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
+if len(sys.argv) == 0:
+    print "usage: program.py <google_api_key>"
+    sys.exit(1)
+else:
+    Config.GOOGLE_API_KEY = sys.argv[1]
+    
+    print Config.GOOGLE_API_KEY
+    
+    # connect to LMDB
+    sparql_lmdb = SPARQLWrapper(SPARQLEndpoints.LMDB)
+    lmdb = LMDBWrapper(sparql_lmdb)
+
+    # connect to freebase
+    freebase_endpoint = discovery.build('freebase',
+                                        'v1',
+                                        developerKey=Config.GOOGLE_API_KEY)
+    freebase = FreebaseWrapper(freebase_endpoint)
+    
+    # process
+    
+#    get_and_persist_lmdb_actors(Config.LMDB_ACTORS_FILE)
+#    get_and_persist_lmdb_films(Config.LMDB_FILMS_TMPFILE)
+#    get_and_persist_lmdb_actors_by_film(Config.LMDB_FILMS_TMPFILE,
+#                                        Config.LMDB_FILMS_FILE)
+    get_and_persist_freebase_actors(Config.LMDB_ACTORS_FILE,
+                                    Config.FREEBASE_ACTORS_FILE)
+#    get_and_persist_freebase_films(Config.LMDB_FILMS_FILE,
+#                                   Config.FREEBASE_FILMS_FILE)
+#    create_mappings(Config.LMDB_ACTORS_FILE,
+#                    Config.ACTOR_MAPPING_FILE,
+#                    {'actorid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
+#    create_mappings(Config.LMDB_FILMS_FILE,
+#                    Config.FILM_MAPPING_FILE,
+#                    {'filmid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
+    sys.exit(0)
