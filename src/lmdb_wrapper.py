@@ -59,7 +59,6 @@ class LMDBWrapper:
                            'name'           : actor['name']['value'].encode('utf-8'),
                            'freebase_guid'  : actor['page']['value'].split('/')[-1]
                            })
-            
         return result
 
     def get_films(self, portal, offset=0, limit=10):

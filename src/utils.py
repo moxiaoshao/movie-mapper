@@ -8,17 +8,23 @@ class Config:
         PREFIX movie: <http://data.linkedmdb.org/resource/movie/>
         PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
         """
-    PAGE_SIZE = 100
+    LMDB_PAGE_SIZE = 100
+    FREEBASE_PAGE_SIZE = 1000
+    
     GOOGLE_API_KEY = ""
     
-    LMDB_ACTORS_FILE = '../out/lmdb_actors'
-    LMDB_FILMS_FILE = '../out/lmdb_films' # with actors
-    LMDB_FILMS_TMPFILE = '../out/lmdb_films.tmp' # without actors
-    FREEBASE_ACTORS_FILE = '../out/freebase_actors'
-    FREEBASE_FILMS_FILE = '../out/freebase_films'
+    LMDB_FREEBASE_ACTORS_FILE = '../out/lmdb_freebase_actors'
+    LMDB_FREEBASE_FILMS_FILE = '../out/lmdb_freebase_films' # with actors
+    LMDB_FREEBASE_FILMS_TMPFILE = '../out/lmdb__freebase_films.tmp' # without actors
+    FREEBASE_LMDB_ACTORS_FILE = '../out/freebase_lmdb_actors'
+    FREEBASE_LMDB_FILMS_FILE = '../out/freebase_lmdb_films'
+    FREEBASE_IMDB_FILMS_FILE = '../out/freebase_imdb_films'
+    FREEBASE_IMDB_ACTORS_FILE = '..out/freebase_imdb_actors'
 
-    ACTOR_MAPPING_FILE = '../out/actor_mapping'
-    FILM_MAPPING_FILE = '../out/film_mapping'
+    FREEBASE_LMDB_ACTOR_MAPPING_FILE = '../out/freebase_lmdb_actor_mapping'
+    FREEBASE_LMDB_FILM_MAPPING_FILE = '../out/freebase_lmdb_film_mapping'
+    FREEBASE_IMDB_ACTOR_MAPPING_FILE = '../out/freebase_imdb_actor_mapping'
+    FREEBASE_IMDB_FILM_MAPPING_FILE = '../out/freebase_imdb_film_mapping'
 
 class SPARQLEndpoints:
     LMDB = "http://data.linkedmdb.org/sparql"    
@@ -36,6 +42,11 @@ class LMDBMovieConcept:
     PRODUCER            = "producer"
     MUSIC_CONTRIBUTOR   = "music_contributor"
     CINEMATOGRAPHER     = "cinematographer"
+    
+class FreebaseMovieConcept:
+    FILM                = "/film/film"
+    ACTOR               = "/film/actor"
+    
     
 def run_query(sparql, query):
     """
