@@ -4,6 +4,7 @@ import sys
 
 from SPARQLWrapper import SPARQLWrapper
 from apiclient import discovery
+from apiclient.errors import HttpError
 
 from lmdb_wrapper import LMDBWrapper
 from utils import Config, Portal, SPARQLEndpoints, LMDBMovieConcept, \
@@ -144,13 +145,14 @@ def get_and_persist_freebase_films(f):
     print "loading films from freebase"
     result = []
     try:
-        film_count = freebase.get_count(Portal.IMDB, FreebaseMovieConcept.FILM)
+        #film_count = freebase.get_count(Portal.IMDB, FreebaseMovieConcept.FILM)
+        film_count = 199174
         print "getting %i films from freebase" % film_count
         with open(f, 'w') as fout:
             portal_key = freebase.get_portal_key(Portal.IMDB)
             dictwriter = csv.DictWriter(fout,
-                                        ['guid',
-                                         'id',
+                                        ['id',
+                                         'guid',
                                          'name',
                                          'initial_release_date',
                                          'directed_by',
@@ -167,24 +169,37 @@ def get_and_persist_freebase_films(f):
             i = 0 # no of films read
             cursor = "" # needed for paging
             while i < film_count:
-                t0 = time.clock()
-                print "getting films %i to %i" % (i, i + Config.FREEBASE_PAGE_SIZE)
-                response = freebase.get_films(Portal.IMDB, 
-                                              Config.FREEBASE_PAGE_SIZE, 
-                                              cursor)
-                for film in response[0]:
-                    film['directed_by'] = ",".join([_['name'] for _ in film['directed_by']])
-                    film['written_by'] = ",".join([_['name'] for _ in film['written_by']])
-                    film['produced_by'] = ",".join([_['name'] for _ in film['produced_by']])
-                    film['genre'] = ",".join([_['name'] for _ in film['genre']])
-                    film['actors'] = ",".join([_['actor']['guid'] for _ in film['starring']])
-                    film['description'] = freebase.get_film_description(film['id'])
-                    film[portal_key] = ",".join(film[portal_key])
-                    dictwriter.writerow(film)
-                cursor = response[1]
-                i += Config.FREEBASE_PAGE_SIZE
-                result += response[0]
-                print "took %i seconds" % (time.clock() - t0)
+                loaded = False
+                delay = 1
+                while not loaded:
+                    time.sleep(delay)
+                    t0 = time.time()
+                    try:
+                        print "getting films %i to %i" % (i, i + Config.FREEBASE_PAGE_SIZE)
+                        response = freebase.get_films(Portal.IMDB,
+                                                      Config.FREEBASE_PAGE_SIZE,
+                                                      cursor)
+                        print "got films, getting descriptions from text api"
+                        for film in response[0]:
+                            film['directed_by'] = ",".join([_['name'] for _ in film['directed_by']])
+                            film['written_by'] = ",".join([_['name'] for _ in film['written_by']])
+                            film['produced_by'] = ",".join([_['name'] for _ in film['produced_by']])
+                            film['genre'] = ",".join([_['name'] for _ in film['genre']])
+                            film['actors'] = ",".join([_['actor']['guid'] for _ in film['starring']])
+                            film['description'] = freebase.get_film_description(film['id'])
+                            film[portal_key] = ",".join(film[portal_key])
+                    except (IOError, HttpError) as _:
+                        delay *= 2  # increase sleep delay in case of connection error
+                        print "a connection error occured, setting retry-delay to %i\n(%s)" % (delay, str(_))
+                    else:
+                        loaded = True
+                        dictwriter.writerows(response[0])
+                        cursor = response[1]
+                        i += Config.FREEBASE_PAGE_SIZE
+                        result += response[0]
+                        fout.flush()
+                        print "took %.2f seconds" % (time.time() - t0)
+                        
     except IOError as ioError:
         print str(ioError)
     else:
@@ -226,7 +241,11 @@ def get_and_persist_freebase_films_by_lmdb_films(lmdb_films_file, fout):
             with open(fout, 'w') as fOut:
                 dictreader = csv.DictReader(fin, delimiter=';')
                 dictwriter = csv.DictWriter(fOut,
-                                            ['guid', 'name', 'starring', 'initial_release_date', 'lmdb'],
+                                            ['guid', 
+                                             'name', 
+                                             'starring', 
+                                             'initial_release_date', 
+                                             'lmdb'],
                                             delimiter=';',
                                             extrasaction='ignore')
                 dictwriter.writeheader()
