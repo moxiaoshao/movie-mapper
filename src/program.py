@@ -204,6 +204,84 @@ def get_and_persist_freebase_films(f):
         print str(ioError)
     else:
         return result
+    
+def get_and_persist_freebase_films_in_order(f):
+    """
+    This function queries freebase for all films which have a imdb_id set. The
+    films are persisted in the given file.
+    This function uses the get_films_in_order method due to the bug in imdb which
+    fails to use a cursor for more than a few thousand of entities (see
+    FreebaseWrapper.get_films for details).
+    """
+    print "loading films from freebase"
+    result = []
+    try:
+        film_count = freebase.get_count(Portal.IMDB, 
+                                        FreebaseMovieConcept.FILM,
+                                        True)
+#        film_count = 199174
+        print "getting %i films from freebase" % film_count
+        with open(f, 'w') as fout:
+            portal_key = freebase.get_portal_key(Portal.IMDB)
+            dictwriter = csv.DictWriter(fout,
+                                        ['id',
+                                         'guid',
+                                         'name',
+                                         'initial_release_date',
+                                         'directed_by',
+                                         'written_by',
+                                         'produced_by',
+                                         'genre',
+                                         'actors',
+                                         'description',
+                                         portal_key],
+                                         delimiter=';',
+                                         extrasaction='ignore')
+            dictwriter.writeheader()
+            
+            i = 0 # no of films read
+            startname = '' # needed for paging
+            tmpname = ''
+            while i < film_count:
+                loaded = False
+                retry_delay = Config.FREEBASE_DEFAULT_DELAY                
+                while not loaded:                    
+                    t0 = time.time()
+                    try:
+                        print "getting films %i to %i with startname: %s" % \
+                                (i, i + Config.FREEBASE_PAGE_SIZE, startname)
+                        response = freebase.get_films_in_order(Portal.IMDB,
+                                                      Config.FREEBASE_PAGE_SIZE,
+                                                      startname)
+                        print "got films, getting descriptions from text api"
+                        for film in response:
+                            film['directed_by'] = ",".join([_['name'] for _ in film['directed_by']])
+                            film['written_by'] = ",".join([_['name'] for _ in film['written_by']])
+                            film['produced_by'] = ",".join([_['name'] for _ in film['produced_by']])
+                            film['genre'] = ",".join([_['name'] for _ in film['genre']])
+                            film['actors'] = ",".join([_['actor']['guid'] for _ in film['starring']])
+                            film['description'] = freebase.get_film_description(film['id'])
+                            film[portal_key] = ",".join(film[portal_key])
+                            tmpname = film['name']
+                    except (IOError, HttpError) as _:
+                        retry_delay *= 2  # increase sleep delay in case of connection error
+                        print "a connection error occured, setting retry-delay to %i\n(%s)" % (retry_delay, str(_))
+                        time.sleep(retry_delay)
+                    else:
+                        loaded = True
+                        dictwriter.writerows(response)
+                        # update the next startname which is needed to get
+                        # the next bunch of movies
+                        startname = tmpname                       
+                        i += Config.FREEBASE_PAGE_SIZE
+                        result += response
+                        fout.flush()
+                        print "took %.2f seconds" % (time.time() - t0)
+                        time.sleep(Config.FREEBASE_DEFAULT_DELAY)
+    except IOError as ioError:
+        print str(ioError)
+    else:
+        return result
 
 def get_and_persist_freebase_actors_by_lmdb_actors(lmdb_actors_file, fout):
     i = 0
@@ -323,5 +401,5 @@ if __name__ == "__main__":
 #                        {'filmid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
         
         # lmdb <-> imdb stuff
-        get_and_persist_freebase_films(Config.FREEBASE_IMDB_FILMS_FILE)
+        get_and_persist_freebase_films_in_order(Config.FREEBASE_IMDB_FILMS_FILE)
         sys.exit(0)

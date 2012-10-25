@@ -15,7 +15,7 @@ class FreebaseWrapper:
             raise ValueError("given portal is not supported %s" % portal)
         
     
-    def get_count(self, portal, concept):
+    def get_count(self, portal, concept, estimate=False):
         """
         Returns the number of instances of a given concept
         which have a link to the given portal.
@@ -24,7 +24,7 @@ class FreebaseWrapper:
         
         query = [{'type' : concept,
                   key : None,                  
-                  'return' : 'count'}]
+                  'return' : 'count' if not estimate else 'estimate-count'}]
         
         response = json.loads(self.__freebase
                               .mqlread(query=json.dumps(query))                              
@@ -102,6 +102,40 @@ class FreebaseWrapper:
                               .execute())
         
         return (response['result'], response['cursor'])
+    
+    def get_films_in_order(self, 
+                           portal, 
+                           limit=100,                         
+                           start_name=''):
+        """
+        This is an alternate implementation to get the relevant movies. I
+        implemented it because of the bug described in get_films doc.
+        This method orders the movies by guid and uses the latest retrieved
+        guid to simulate paging.
+        """
+        key = self.get_portal_key(portal)
+        
+        query = [{'id' : None,
+                  'guid' : None,
+                  'name' : None,                
+                  'name>' : start_name,
+                  'directed_by' : [{'name' : None}],
+                  'written_by' : [{'name' : None}],
+                  'produced_by' : [{'name' : None}],
+                  'initial_release_date' : None,
+                  'genre' : [{'name' : None}],
+                  'type' : FreebaseMovieConcept.FILM,                  
+                  'starring' : [{'actor' : {'guid' : None, 'imdb_entry' : []}}],
+                  key : [], # there are films with multiple links
+                  'limit' : limit,
+                  'sort' : 'name'
+                  }]
+        response = json.loads(self.__freebase
+                              .mqlread(query=json.dumps(query))
+                              .execute())
+        
+        return response['result']
+        
     
     def get_film_description(self, film_id):
         url = 'https://www.googleapis.com/rpc'
