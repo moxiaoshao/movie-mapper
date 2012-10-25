@@ -74,6 +74,14 @@ class FreebaseWrapper:
             return None
         
     def get_films(self, portal, limit=100, cursor=""):
+        """
+        This function is implemented according to the official freebase MQL
+        documentation (http://wiki.freebase.com/wiki/MQL_Manual/mqlread# \
+        Fetching_Large_Result_Sets_with_Cursors).
+        Unfortunately, this runs into an 503 "Backend Error" after returning a
+        fixed number of movies. I reported this on the official mailing list:
+        http://lists.freebase.com/pipermail/freebase-discuss/2012-October/009817.html
+        """
         key = self.get_portal_key(portal) 
         
         query = [{'id' : None, 
