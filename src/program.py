@@ -26,12 +26,15 @@ def get_and_persist_lmdb_actors(f):
         
         print "loading %i actors from lmdb" % actorCount
         with open(f, 'w') as fOut:
-            csvwriter = csv.DictWriter(fOut, ['actorid', 'name', 'freebase_guid'], delimiter=';')
+            csvwriter = csv.DictWriter(fOut, 
+                                       ['actorid', 'name', 'freebase_guid'], 
+                                       delimiter=';')
             csvwriter.writeheader() 
             for i in range(0, actorCount, Config.LMDB_PAGE_SIZE):
                 loaded = False
                 delay = 1
-                print 'getting actors from %i to %i' % (i, (i + Config.LMDB_PAGE_SIZE))
+                print 'getting actors from %i to %i' \
+                        % (i, (i + Config.LMDB_PAGE_SIZE))
                 while not loaded:
                     time.sleep(delay)
                     try:
@@ -40,7 +43,9 @@ def get_and_persist_lmdb_actors(f):
                                                  Config.LMDB_PAGE_SIZE)  # limit
                     except IOError as _:
                         delay *= 2
-                        print "a connection error occured, setting retry-delay to %i (%s)" % (delay, _.args)
+                        print "a connection error occured," \
+                              " setting retry-delay to %i (%s)" \
+                              % (delay, _.args)
                     else:
                         loaded = True
                 csvwriter.writerows(actors)
@@ -53,8 +58,8 @@ def get_and_persist_lmdb_actors(f):
     
 def get_and_persist_lmdb_films(f):
     """
-    This function queries LMDB for all films which have a foaf:page link to freebase
-    and stores the results f.
+    This function queries LMDB for all films which have a foaf:page link to 
+    freebase and stores the results f.
     """
     result = []
     try:
@@ -64,13 +69,17 @@ def get_and_persist_lmdb_films(f):
                 
         with open(f, 'w') as fOut:
             csvwriter = csv.DictWriter(fOut,
-                                       ['filmid', 'name', 'date', 'freebase_guid'],
+                                       ['filmid', 
+                                        'name', 
+                                        'date', 
+                                        'freebase_guid'],
                                        delimiter=';')
             csvwriter.writeheader()
             for i in range(0, filmCount, Config.LMDB_PAGE_SIZE):
                 loaded = False
                 delay = 1
-                print 'getting films from %i to %i \r' % (i, (i + Config.LMDB_PAGE_SIZE))
+                print 'getting films from %i to %i \r' \
+                        % (i, (i + Config.LMDB_PAGE_SIZE))
                 while not loaded:
                     time.sleep(delay)
                     try:
@@ -79,7 +88,9 @@ def get_and_persist_lmdb_films(f):
                                                Config.LMDB_PAGE_SIZE)                        
                     except IOError as _:
                         delay *= 2
-                        print "a connection error occured, setting retry-delay to %i (%s)" % (delay, _.args)
+                        print "a connection error occured," \
+                              " setting retry-delay to %i (%s)" \
+                              % (delay, _.args)
                     else:
                         loaded = True
                 csvwriter.writerows(films)
@@ -108,7 +119,11 @@ def get_and_persist_lmdb_actors_by_film(fin, fout):
         print "getting actors for film"
         with open(fout, 'w') as fOut:
             csvwriter = csv.DictWriter(fOut,
-                                       ['filmid', 'name', 'actors', 'date', 'freebase_guid'],
+                                       ['filmid', 
+                                        'name', 
+                                        'actors', 
+                                        'date', 
+                                        'freebase_guid'],
                                        delimiter=';')
             csvwriter.writeheader()
             n = len(films)
@@ -125,7 +140,9 @@ def get_and_persist_lmdb_actors_by_film(fin, fout):
                                                                           int(film['filmid'])))
                     except IOError as _:
                         delay *= 2  # increase sleep delay in case of connection error
-                        print "a connection error occured, setting retry-delay to %i (%s)" % (delay, _.args)
+                        print "a connection error occured," \
+                              " setting retry-delay to %i (%s)" \
+                              % (delay, _.args)
                     else:
                         loaded = True
                     if loaded:
@@ -145,8 +162,9 @@ def get_and_persist_freebase_films(f):
     print "loading films from freebase"
     result = []
     try:
-        #film_count = freebase.get_count(Portal.IMDB, FreebaseMovieConcept.FILM)
-        film_count = 199174
+        film_count = freebase.get_count(Portal.IMDB, 
+                                        FreebaseMovieConcept.FILM, 
+                                        True)
         print "getting %i films from freebase" % film_count
         with open(f, 'w') as fout:
             portal_key = freebase.get_portal_key(Portal.IMDB)
@@ -170,12 +188,12 @@ def get_and_persist_freebase_films(f):
             cursor = "" # needed for paging
             while i < film_count:
                 loaded = False
-                delay = 1
+                retry_delay = Config.FREEBASE_DEFAULT_DELAY
                 while not loaded:
-                    time.sleep(delay)
                     t0 = time.time()
                     try:
-                        print "getting films %i to %i" % (i, i + Config.FREEBASE_PAGE_SIZE)
+                        print "getting films %i to %i" \
+                              % (i, i + Config.FREEBASE_PAGE_SIZE)
                         response = freebase.get_films(Portal.IMDB,
                                                       Config.FREEBASE_PAGE_SIZE,
                                                       cursor)
@@ -189,17 +207,22 @@ def get_and_persist_freebase_films(f):
                             film['description'] = freebase.get_film_description(film['id'])
                             film[portal_key] = ",".join(film[portal_key])
                     except (IOError, HttpError) as _:
-                        delay *= 2  # increase sleep delay in case of connection error
-                        print "a connection error occured, setting retry-delay to %i\n(%s)" % (delay, str(_))
+                        retry_delay *= 2  # increase sleep delay in case of connection error
+                        print "a connection error occured," \
+                              " setting retry-delay to %i\n(%s)" \
+                              % (retry_delay, str(_))
                     else:
                         loaded = True
-                        dictwriter.writerows(response[0])
+                        for film in response[0]:
+                            dictwriter.writerow({k:(v.encode('utf8') \
+                                                 if isinstance(v, unicode) else v) \
+                                                 for k,v in film.items()})
                         cursor = response[1]
                         i += Config.FREEBASE_PAGE_SIZE
                         result += response[0]
                         fout.flush()
                         print "took %.2f seconds" % (time.time() - t0)
-                        
+                        time.sleep(Config.FREEBASE_DEFAULT_DELAY)
     except IOError as ioError:
         print str(ioError)
     else:
@@ -269,7 +292,10 @@ def get_and_persist_freebase_films_in_order(f):
                         time.sleep(retry_delay)
                     else:
                         loaded = True
-                        dictwriter.writerows(response)
+                        for film in response:
+                            dictwriter.writerow({k:(v.encode('utf8') \
+                                                 if isinstance(v, unicode) else v) \
+                                                 for k,v in film.items()})
                         # update the next startname which is needed to get
                         # the next bunch of movies
                         startname = tmpname                       
@@ -298,10 +324,13 @@ def get_and_persist_freebase_actors_by_lmdb_actors(lmdb_actors_file, fout):
                 
                 for actor in dictreader:
                     i += 1
-                    freebase_actor = freebase.get_actor_by_guid(actor['freebase_guid'])
+                    freebase_actor = freebase.get_actor_by_guid( \
+                                                        actor['freebase_guid'])
                     if freebase_actor is not None:
-                        freebase_actor['lmdb'] = actor['actorid']  
-                        dictwriter.writerow(freebase_actor)
+                        freebase_actor['lmdb'] = actor['actorid']
+                        dictwriter.writerow({k:(v.encode('utf8') \
+                                             if isinstance(v, unicode) else v) \
+                                             for k,v in freebase_actor.items()})
                     result += freebase_actor
                     if i % Config.LMDB_PAGE_SIZE == 0:
                         sys.stdout.write("Actors queried: %i   \r" % (i))
@@ -329,10 +358,13 @@ def get_and_persist_freebase_films_by_lmdb_films(lmdb_films_file, fout):
                 dictwriter.writeheader()
                 for film in dictreader:
                     i += 1
-                    freebase_film = freebase.get_film_by_guid(film['freebase_guid'])
+                    freebase_film = freebase.get_film_by_guid( \
+                                                        film['freebase_guid'])
                     if freebase_film is not None:
                         freebase_film['lmdb'] = film['filmid']
-                        dictwriter.writerow(freebase_film)
+                        dictwriter.writerow({k:(v.encode('utf8') \
+                                             if isinstance(v, unicode) else v) \
+                                             for k,v in freebase_film.items()})
                     result += freebase_film
                     if i % Config.LMDB_PAGE_SIZE == 0:
                         sys.stdout.write("Films queried: %i   \r" % (i))
@@ -341,7 +373,7 @@ def get_and_persist_freebase_films_by_lmdb_films(lmdb_films_file, fout):
         print str(ioError)
     else:
         return result
-
+    
 def create_mappings(source_file, map_file, key_map):
     try:
         with open(source_file, 'r') as sourcef:
@@ -385,21 +417,21 @@ if __name__ == "__main__":
         
         # process
         # lmdb <-> freebase stuff
-#        get_and_persist_lmdb_actors(Config.LMDB_ACTORS_FILE)
-#        get_and_persist_lmdb_films(Config.LMDB_FILMS_TMPFILE)
-#        get_and_persist_lmdb_actors_by_film(Config.LMDB_FILMS_TMPFILE,
-#                                            Config.LMDB_FILMS_FILE)
-#        get_and_persist_freebase_actors_by_lmdb_actors(Config.LMDB_ACTORS_FILE,
-#                                                       Config.FREEBASE_ACTORS_FILE)
-#        get_and_persist_freebase_films_by_lmdb_films(Config.LMDB_FILMS_FILE,
-#                                                     Config.FREEBASE_FILMS_FILE)
-#        create_mappings(Config.LMDB_ACTORS_FILE,
-#                        Config.ACTOR_MAPPING_FILE,
+#        get_and_persist_lmdb_actors(Config.LMDB_FREEBASE_ACTORS_FILE)
+#        get_and_persist_lmdb_films(Config.LMDB_FREEBASE_FILMS_TMPFILE)
+#        get_and_persist_lmdb_actors_by_film(Config.LMDB_FREEBASE_FILMS_TMPFILE,
+#                                            Config.LMDB_FREEBASE_FILMS_FILE)
+#        get_and_persist_freebase_actors_by_lmdb_actors(Config.LMDB_FREEBASE_ACTORS_FILE,
+#                                                       Config.FREEBASE_LMDB_ACTORS_FILE)
+#        get_and_persist_freebase_films_by_lmdb_films(Config.LMDB_FREEBASE_FILMS_FILE,
+#                                                     Config.FREEBASE_LMDB_FILMS_FILE)
+#        create_mappings(Config.LMDB_FREEBASE_ACTORS_FILE,
+#                        Config.FREEBASE_LMDB_ACTOR_MAPPING_FILE,
 #                        {'actorid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
-#        create_mappings(Config.LMDB_FILMS_FILE,
-#                        Config.FILM_MAPPING_FILE,
+#        create_mappings(Config.LMDB_FREEBASE_FILMS_FILE,
+#                        Config.FREEBASE_LMDB_FILM_MAPPING_FILE,
 #                        {'filmid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
-        
+#        
         # lmdb <-> imdb stuff
         get_and_persist_freebase_films_in_order(Config.FREEBASE_IMDB_FILMS_FILE)
         sys.exit(0)

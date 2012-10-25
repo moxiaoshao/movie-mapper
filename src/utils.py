@@ -9,7 +9,7 @@ class Config:
         PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
         """
     LMDB_PAGE_SIZE = 100
-    FREEBASE_PAGE_SIZE = 500
+    FREEBASE_PAGE_SIZE = 250
     
     FREEBASE_DEFAULT_DELAY = 60
     
