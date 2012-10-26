@@ -282,7 +282,7 @@ def get_and_persist_freebase_films_in_order(f):
                         print "got films, getting descriptions from text api"
                         for film in response:
                             film['directed_by'] = ",".join([_['name'] for _ in film['directed_by']])
-                            film['written_by'] = ",".join([_['name'] for _ in film['written_by']])
+                            film['written_by'] = ",".join([_['name'] if _['name'] is not None else "" for _ in film['written_by']])
                             film['produced_by'] = ",".join([_['name'] for _ in film['produced_by']])
                             film['genre'] = ",".join([_['name'] for _ in film['genre']])
                             film['actors'] = ",".join([_['actor']['guid'] for _ in film['starring']])

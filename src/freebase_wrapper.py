@@ -84,16 +84,25 @@ class FreebaseWrapper:
         """
         key = self.get_portal_key(portal) 
         
-        query = [{'id' : None, 
-                  'guid' : None,                 
-                  'name' : None,
-                  'directed_by' : [{'name' : None}],
-                  'written_by' : [{'name' : None}],
-                  'produced_by' : [{'name' : None}],
-                  'initial_release_date' : None,
-                  'genre' : [{'name' : None}],
-                  'type' : FreebaseMovieConcept.FILM,                  
-                  'starring' : [{'actor' : {'guid' : None, 'imdb_entry' : []}}],
+        query = [{'id': None, 
+                  'guid': None,                 
+                  'name': None,
+                  'directed_by': [{'name': None}],
+                  'written_by': [{'name': None}],
+                  'produced_by': [{'name': None}],
+                  'initial_release_date': None,
+                  'genre': [{'name': None}],
+                  'type': FreebaseMovieConcept.FILM,                  
+                  'starring': [{'actor': {'guid': None,
+                                          # this increases the amount of films
+                                          # dramatically, imdb_ref is more often
+                                          # but buggy
+                                          # 'imdb_ref': []
+                                          'key': [{
+                                                   "namespace": key, 
+                                                   "value": None
+                                                   }]
+                                         }}],
                   key : [], # there are films with multiple links
                   'limit' : limit,
                   }]
@@ -124,8 +133,12 @@ class FreebaseWrapper:
                   'produced_by' : [{'name' : None}],
                   'initial_release_date' : None,
                   'genre' : [{'name' : None}],
+                  'starring': [{'actor': {'guid': None,
+                                           #'key': [{"namespace": key,
+                                           #         "value": None
+                                           #        }]
+                                         }}],
                   'type' : FreebaseMovieConcept.FILM,                  
-                  'starring' : [{'actor' : {'guid' : None, 'imdb_entry' : []}}],
                   'key' : [{'namespace' : key, 'value' : None}],
                   'limit' : limit,
                   'sort' : 'name'
