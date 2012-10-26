@@ -9,9 +9,13 @@ class Config:
         PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
         """
     LMDB_PAGE_SIZE = 100
-    FREEBASE_PAGE_SIZE = 250
+
+    FREEBASE_MAX_PAGE_SIZE = 1000
+    FREEBASE_START_PAGE_SIZE = 500
+    FREEBASE_MIN_PAGE_SIZE = 10 
     
-    FREEBASE_DEFAULT_DELAY = 60
+    FREEBASE_DEFAULT_DELAY = 10
+    FREEBASE_ERROR_DELAY = 30
     
     GOOGLE_API_KEY = ""
     

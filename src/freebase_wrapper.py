@@ -10,7 +10,7 @@ class FreebaseWrapper:
         
     def get_portal_key(self, portal):
         if Portal.IMDB == portal:
-            return 'imdb_id'
+            return '/authority/imdb/title'
         else:
             raise ValueError("given portal is not supported %s" % portal)
         
@@ -23,7 +23,7 @@ class FreebaseWrapper:
         key = self.get_portal_key(portal)
         
         query = [{'type' : concept,
-                  key : None,                  
+                  'key' : [{'namespace': key, 'value' : None}],                  
                   'return' : 'count' if not estimate else 'estimate-count'}]
         
         response = json.loads(self.__freebase
@@ -126,7 +126,7 @@ class FreebaseWrapper:
                   'genre' : [{'name' : None}],
                   'type' : FreebaseMovieConcept.FILM,                  
                   'starring' : [{'actor' : {'guid' : None, 'imdb_entry' : []}}],
-                  key : [], # there are films with multiple links
+                  'key' : [{'namespace' : key, 'value' : None}],
                   'limit' : limit,
                   'sort' : 'name'
                   }]
@@ -138,21 +138,23 @@ class FreebaseWrapper:
         
     
     def get_film_description(self, film_id):
-        url = 'https://www.googleapis.com/rpc'
-        requests = [{
-          'method': 'freebase.text.get', 
-          'apiVersion': 'v1', 
-          'params': {
-            'id': film_id.split('/')[1:3]
-          }
-        }]
-        headers = { 'Content-Type': 'application/json' }
-        req = urllib2.Request(url, json.dumps(requests), headers)
-        response = urllib2.urlopen(req)
-        result = json.loads(response.read())
-        if  len(result) > 0 and \
-            result[0].has_key('result') and \
-            result[0]['result'].has_key('result'):
-            return result[0]['result']['result'].replace('\n', '')
-        else:
-            return ""
+        #url = 'https://www.googleapis.com/rpc'
+        #requests = [{
+        #  'method': 'freebase.text.get', 
+        #  'apiVersion': 'v1', 
+        #  'params': {
+        #    'id': film_id.split('/')[1:3]
+        #  }
+        #}]
+        #headers = { 'Content-Type': 'application/json' }
+        #req = urllib2.Request(url, json.dumps(requests), headers)
+        #response = urllib2.urlopen(req)
+        #result = json.loads(response.read())
+        #if  len(result) > 0 and \
+        #    result[0].has_key('result') and \
+        #    result[0]['result'].has_key('result'):
+        #    return result[0]['result']['result'].replace('\n', '')
+        #else:
+        #    return ""
+        response = self.__freebase.text().get(id=film_id).execute()
+        return response['result'].replace('\n', '')

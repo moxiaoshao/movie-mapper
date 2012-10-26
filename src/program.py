@@ -1,6 +1,7 @@
 import csv
 import time
 import sys
+import json
 
 from SPARQLWrapper import SPARQLWrapper
 from apiclient import discovery
@@ -193,9 +194,9 @@ def get_and_persist_freebase_films(f):
                     t0 = time.time()
                     try:
                         print "getting films %i to %i" \
-                              % (i, i + Config.FREEBASE_PAGE_SIZE)
+                              % (i, i + Config.FREEBASE_START_PAGE_SIZE)
                         response = freebase.get_films(Portal.IMDB,
-                                                      Config.FREEBASE_PAGE_SIZE,
+                                                      Config.FREEBASE_START_PAGE_SIZE,
                                                       cursor)
                         print "got films, getting descriptions from text api"
                         for film in response[0]:
@@ -218,7 +219,7 @@ def get_and_persist_freebase_films(f):
                                                  if isinstance(v, unicode) else v) \
                                                  for k,v in film.items()})
                         cursor = response[1]
-                        i += Config.FREEBASE_PAGE_SIZE
+                        i += Config.FREEBASE_START_PAGE_SIZE
                         result += response[0]
                         fout.flush()
                         print "took %.2f seconds" % (time.time() - t0)
@@ -257,7 +258,7 @@ def get_and_persist_freebase_films_in_order(f):
                                          'genre',
                                          'actors',
                                          'description',
-                                         portal_key],
+                                         'imdb'],
                                          delimiter=';',
                                          extrasaction='ignore')
             dictwriter.writeheader()
@@ -265,17 +266,19 @@ def get_and_persist_freebase_films_in_order(f):
             i = 0 # no of films read
             startname = '' # needed for paging
             tmpname = ''
-            while i < film_count:
+            got_more = True
+            limit = Config.FREEBASE_START_PAGE_SIZE
+            successful_queries = 0
+            while got_more:
                 loaded = False
-                retry_delay = Config.FREEBASE_DEFAULT_DELAY                
                 while not loaded:                    
                     t0 = time.time()
                     try:
                         print "getting films %i to %i with startname: %s" % \
-                                (i, i + Config.FREEBASE_PAGE_SIZE, startname)
+                                (i, i + limit, startname)
                         response = freebase.get_films_in_order(Portal.IMDB,
-                                                      Config.FREEBASE_PAGE_SIZE,
-                                                      startname)
+                                                               limit,
+                                                               startname)
                         print "got films, getting descriptions from text api"
                         for film in response:
                             film['directed_by'] = ",".join([_['name'] for _ in film['directed_by']])
@@ -283,23 +286,45 @@ def get_and_persist_freebase_films_in_order(f):
                             film['produced_by'] = ",".join([_['name'] for _ in film['produced_by']])
                             film['genre'] = ",".join([_['name'] for _ in film['genre']])
                             film['actors'] = ",".join([_['actor']['guid'] for _ in film['starring']])
-                            film['description'] = freebase.get_film_description(film['id'])
-                            film[portal_key] = ",".join(film[portal_key])
+                            try:
+                                film['description'] = freebase.get_film_description(film['id'])
+                            except HttpError as _:
+                                film['description'] = ""
+                            film['imdb'] = ",".join(set([_['value'].rstrip('\n') for _ in film['key']]))
                             tmpname = film['name']
                     except (IOError, HttpError) as _:
-                        retry_delay *= 2  # increase sleep delay in case of connection error
-                        print "a connection error occured, setting retry-delay to %i\n(%s)" % (retry_delay, str(_))
-                        time.sleep(retry_delay)
+                        if (limit - 50) > Config.FREEBASE_MIN_PAGE_SIZE:
+                            limit -= 50
+                        else:
+                            limit = Config.FREEBASE_MIN_PAGE_SIZE
+                        print ("Connection error occured!\n" \
+                               + "\twaiting %i seconds to retry\n" \
+                               + "\treducing limit to %i \n" \
+                               + "\t%s") \
+                               % (Config.FREEBASE_ERROR_DELAY, limit, str(_))
+                        time.sleep(Config.FREEBASE_ERROR_DELAY)
+                        #init_freebase()
+                        successful_queries = 0
                     else:
                         loaded = True
+                        successful_queries += 1
+                        # try to fetch more per query after 10 successful queries
+                        if successful_queries == 10:
+                            if (limit + 50) < Config.FREEBASE_MAX_PAGE_SIZE:
+                                limit += 50
+                            else:
+                                limit = Config.FREEBASE_MAX_PAGE_SIZE
+                            successful_queries = 0
                         for film in response:
+                            # write encoded from utf-8
                             dictwriter.writerow({k:(v.encode('utf8') \
                                                  if isinstance(v, unicode) else v) \
                                                  for k,v in film.items()})
                         # update the next startname which is needed to get
                         # the next bunch of movies
+                        got_more = startname != tmpname
                         startname = tmpname                       
-                        i += Config.FREEBASE_PAGE_SIZE
+                        i += limit 
                         result += response
                         fout.flush()
                         print "took %.2f seconds" % (time.time() - t0)
@@ -333,7 +358,7 @@ def get_and_persist_freebase_actors_by_lmdb_actors(lmdb_actors_file, fout):
                                              for k,v in freebase_actor.items()})
                     result += freebase_actor
                     if i % Config.LMDB_PAGE_SIZE == 0:
-                        sys.stdout.write("Actors queried: %i   \r" % (i))
+                        print "Actors queried: %i   \r" % i
                         fOut.flush()
     except IOError as ioError:
         print str(ioError)
@@ -367,7 +392,7 @@ def get_and_persist_freebase_films_by_lmdb_films(lmdb_films_file, fout):
                                              for k,v in freebase_film.items()})
                     result += freebase_film
                     if i % Config.LMDB_PAGE_SIZE == 0:
-                        sys.stdout.write("Films queried: %i   \r" % (i))
+                        print "Films queried: %i   \r" % i
                         fOut.flush()
     except IOError as ioError:
         print str(ioError)
@@ -395,43 +420,43 @@ def create_mappings(source_file, map_file, key_map):
                 map.flush()
     except IOError as ioError:
         print str(ioError)
-            
+
+def init_freebase():
+    return FreebaseWrapper(discovery.build('freebase',
+                                           'v1',
+                                            developerKey=Config.GOOGLE_API_KEY))
 # hit and run
 if __name__ == "__main__":
     
     if len(sys.argv) <= 1:
         print "usage: program.py <google_api_key>"
         sys.exit(1)
-    else:
-        Config.GOOGLE_API_KEY = sys.argv[1]
-        
-        # connect to LMDB
-        sparql_lmdb = SPARQLWrapper(SPARQLEndpoints.LMDB)
-        lmdb = LMDBWrapper(sparql_lmdb)
+    Config.GOOGLE_API_KEY = sys.argv[1]
     
-        # connect to freebase
-        freebase_endpoint = discovery.build('freebase',
-                                            'v1',
-                                            developerKey=Config.GOOGLE_API_KEY)
-        freebase = FreebaseWrapper(freebase_endpoint)
-        
-        # process
-        # lmdb <-> freebase stuff
-#        get_and_persist_lmdb_actors(Config.LMDB_FREEBASE_ACTORS_FILE)
-#        get_and_persist_lmdb_films(Config.LMDB_FREEBASE_FILMS_TMPFILE)
-#        get_and_persist_lmdb_actors_by_film(Config.LMDB_FREEBASE_FILMS_TMPFILE,
-#                                            Config.LMDB_FREEBASE_FILMS_FILE)
-#        get_and_persist_freebase_actors_by_lmdb_actors(Config.LMDB_FREEBASE_ACTORS_FILE,
-#                                                       Config.FREEBASE_LMDB_ACTORS_FILE)
-#        get_and_persist_freebase_films_by_lmdb_films(Config.LMDB_FREEBASE_FILMS_FILE,
-#                                                     Config.FREEBASE_LMDB_FILMS_FILE)
-#        create_mappings(Config.LMDB_FREEBASE_ACTORS_FILE,
-#                        Config.FREEBASE_LMDB_ACTOR_MAPPING_FILE,
-#                        {'actorid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
-#        create_mappings(Config.LMDB_FREEBASE_FILMS_FILE,
-#                        Config.FREEBASE_LMDB_FILM_MAPPING_FILE,
-#                        {'filmid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
-#        
-        # lmdb <-> imdb stuff
-        get_and_persist_freebase_films_in_order(Config.FREEBASE_IMDB_FILMS_FILE)
-        sys.exit(0)
+    # connect to LMDB
+    sparql_lmdb = SPARQLWrapper(SPARQLEndpoints.LMDB)
+    lmdb = LMDBWrapper(sparql_lmdb)
+
+    # connect to freebase
+    freebase = init_freebase()
+
+    # process
+    # lmdb <-> freebase stuff
+#    get_and_persist_lmdb_actors(Config.LMDB_FREEBASE_ACTORS_FILE)
+#    get_and_persist_lmdb_films(Config.LMDB_FREEBASE_FILMS_TMPFILE)
+#    get_and_persist_lmdb_actors_by_film(Config.LMDB_FREEBASE_FILMS_TMPFILE,
+#                                        Config.LMDB_FREEBASE_FILMS_FILE)
+#    get_and_persist_freebase_actors_by_lmdb_actors(Config.LMDB_FREEBASE_ACTORS_FILE,
+#                                                   Config.FREEBASE_LMDB_ACTORS_FILE)
+#    get_and_persist_freebase_films_by_lmdb_films(Config.LMDB_FREEBASE_FILMS_FILE,
+#                                                 Config.FREEBASE_LMDB_FILMS_FILE)
+#    create_mappings(Config.LMDB_FREEBASE_ACTORS_FILE,
+#                    Config.FREEBASE_LMDB_ACTOR_MAPPING_FILE,
+#                    {'actorid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
+#    create_mappings(Config.LMDB_FREEBASE_FILMS_FILE,
+#                    Config.FREEBASE_LMDB_FILM_MAPPING_FILE,
+#                    {'filmid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
+#    
+    # lmdb <-> imdb stuff
+    get_and_persist_freebase_films_in_order(Config.FREEBASE_IMDB_FILMS_FILE)
+    sys.exit(0)
