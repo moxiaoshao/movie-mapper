@@ -16,6 +16,7 @@ class FreebaseWrapper:
         self.__freebase = discovery.build('freebase', 'v1',
                 developerKey=google_api_key)
         self.__filmcursor = None
+        self.__google_api_key = google_api_key
 
     def __set_authority_keys(self, portal):
         if 'imdb' in portal:
@@ -177,3 +178,26 @@ class FreebaseWrapper:
         #    return ""
         response = self.__freebase.text().get(id=film_id).execute()
         return response['result'].replace('\n', '')
+
+    def get_film_descriptions(self, film_ids):
+        requests = []
+        result = {}
+        url = 'https://www.googleapis.com/rpc'
+        for film_id in film_ids:
+            requests.append({
+                'method': 'freebase.text.get',
+                'apiVersion': 'v1',
+                'params': {
+                    'id': film_id.split('/')[1:3],
+                    'key': self.__google_api_key,
+                    }
+                })
+        headers = { 'Content-Type': 'application/json' }
+        req = urllib2.Request(url, json.dumps(requests), headers)
+        response = json.loads(urllib2.urlopen(req).read())
+        for i in range(0, len(film_ids)):
+            result[film_ids[i]] = response[i]['result']['result'] \
+                    if 'result' in response[i] else None
+        return result
+
+

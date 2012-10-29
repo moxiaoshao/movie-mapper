@@ -196,6 +196,8 @@ def get_and_persist_freebase_films(f):
                                                       FreebaseSettings.START_PAGE_SIZE,
                                                       cursor)
                         print "got films, getting descriptions from text api"
+                        descriptions = freebase.get_film_descriptions(
+                                [film['id'] for film in response[0]])
                         for film in response[0]:
                             film['directed_by'] = ",".join(
                                     [_['name'] if _['name'] is not None else "" for _ in film['directed_by']])
@@ -207,11 +209,7 @@ def get_and_persist_freebase_films(f):
                                     [_['name'] if _['name'] is not None else "" for _ in film['genre']])
                             film['actors'] = ",".join(
                                     [_['actor']['guid'] for _ in film['starring']])
-                            try:
-                                film['description'] = \
-                                    freebase.get_film_description(film['id'])
-                            except HttpError as _:
-                                film['description'] = ""
+                            film['description'] = descriptions[film['id']]
                             film['imdb'] = ",".join(
                                     set([_['value'].rstrip('\n') for _ in film['key']]))
                     except (IOError, HttpError) as _:

@@ -1,5 +1,5 @@
 class FreebaseSettings:
-    MAX_PAGE_SIZE = 1000
+    MAX_PAGE_SIZE = 750
     START_PAGE_SIZE = 500
     MIN_PAGE_SIZE = 10
 
