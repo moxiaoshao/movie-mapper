@@ -1,43 +1,51 @@
 import urllib2
 import json
 
-from utils import Portal, FreebaseMovieConcept
+from apiclient import discovery
+from apiclient.errors import HttpError
+
+from settings import *
+
+class FreebaseConcept:
+    FILM = '/film/film'
+    ACTOR = '/film/actor'
+
 
 class FreebaseWrapper:
-    def __init__(self, freebase):
-        self.__freebase = freebase
+    def __init__(self, google_api_key):
+        self.__freebase = discovery.build('freebase', 'v1',
+                developerKey=google_api_key)
         self.__filmcursor = None
-        
-    def get_portal_key(self, portal):
-        if Portal.IMDB == portal:
-            return '/authority/imdb/title'
-        else:
-            raise ValueError("given portal is not supported %s" % portal)
-        
-    
+
+    def __set_authority_keys(self, portal):
+        if 'imdb' in portal:
+            self.__film_authority_key = '/authority/imdb/title'
+            self.__actor_authority_key = '/authority/imdb/name'
+
     def get_count(self, portal, concept, estimate=False):
         """
         Returns the number of instances of a given concept
         which have a link to the given portal.
         """
-        key = self.get_portal_key(portal)
-        
-        query = [{'type' : concept,
-                  'key' : [{'namespace': key, 'value' : None}],                  
-                  'return' : 'count' if not estimate else 'estimate-count'}]
-        
+        self.__set_authority_keys(portal)
+
+        query = [{'type' : concept, 'key' : [{
+            'namespace': self.__film_authority_key,
+            'value' : None}],
+            'return' : 'count' if not estimate else 'estimate-count'}]
+
         response = json.loads(self.__freebase
-                              .mqlread(query=json.dumps(query))                              
+                              .mqlread(query=json.dumps(query))
                               .execute())
-        
+
         return response['result'][0] if len(response['result']) > 0 else 0
-        
+
     def get_actor_by_guid(self, guid):
         """
         Returns relevant actor data by guid.
-        
+
         guid is the freebase hex guid
-        
+
         """
         if guid[0] != '#':
             guid = '#' + guid
@@ -47,7 +55,7 @@ class FreebaseWrapper:
                               .mqlread(query=json.dumps(query))
                               .execute())
         return response['result'][0] if len(response['result']) > 0 else None
-    
+
     def get_film_by_guid(self, guid):
         """
         Returns relevant movie data by guid.
@@ -64,7 +72,7 @@ class FreebaseWrapper:
         response = json.loads(self.__freebase
                               .mqlread(query=json.dumps(query))
                               .execute())
-        
+
         if len(response['result']) > 0:
             result = response['result'][0]
             actors = ",".join([actor['actor']['guid'] for actor in result['starring']])
@@ -72,7 +80,7 @@ class FreebaseWrapper:
             return result
         else:
             return None
-        
+
     def get_films(self, portal, limit=100, cursor=""):
         """
         This function is implemented according to the official freebase MQL
@@ -82,39 +90,40 @@ class FreebaseWrapper:
         fixed number of movies. I reported this on the official mailing list:
         http://lists.freebase.com/pipermail/freebase-discuss/2012-October/009817.html
         """
-        key = self.get_portal_key(portal) 
-        
-        query = [{'id': None, 
-                  'guid': None,                 
+        self.__set_authority_keys(portal)
+        query = [{'id': None,
+                  'guid': None,
                   'name': None,
                   'directed_by': [{'name': None}],
                   'written_by': [{'name': None}],
                   'produced_by': [{'name': None}],
                   'initial_release_date': None,
                   'genre': [{'name': None}],
-                  'type': FreebaseMovieConcept.FILM,                  
+                  'type': FreebaseConcept.FILM,
                   'starring': [{'actor': {'guid': None,
                                           # this increases the amount of films
                                           # dramatically, imdb_ref is more often
                                           # but buggy
                                           # 'imdb_ref': []
                                           'key': [{
-                                                   "namespace": key, 
-                                                   "value": None
+                                                   'namespace':
+                                                   self.__actor_authority_key,
+                                                   'value': None
                                                    }]
                                          }}],
-                  key : [], # there are films with multiple links
-                  'limit' : limit,
+                  'key': [{'namespace': self.__film_authority_key,
+                      'value': None}],
+                  'limit': limit,
                   }]
         response = json.loads(self.__freebase
                               .mqlread(query=json.dumps(query), cursor=cursor)
                               .execute())
-        
+
         return (response['result'], response['cursor'])
-    
-    def get_films_in_order(self, 
-                           portal, 
-                           limit=100,                         
+
+    def get_films_in_order(self,
+                           portal,
+                           limit=100,
                            start_name=''):
         """
         This is an alternate implementation to get the relevant movies. I
@@ -122,11 +131,9 @@ class FreebaseWrapper:
         This method orders the movies by guid and uses the latest retrieved
         guid to simulate paging.
         """
-        key = self.get_portal_key(portal)
-        
         query = [{'id' : None,
                   'guid' : None,
-                  'name' : None,                
+                  'name' : None,
                   'name>' : start_name,
                   'directed_by' : [{'name' : None, 'optional': True}],
                   'written_by' : [{'name' : None, 'optional': True}],
@@ -135,12 +142,14 @@ class FreebaseWrapper:
                   'genre' : [{'name' : None, 'optional': True}],
                   'starring': [{'actor': {'guid': None,
                                           'key': [{
-                                                   "namespace": '/authority/imdb/name',
+                                                   "namespace":
+                                                   self.__actor_authority_key,
                                                    "value": None
                                                   }]
                                          }}],
-                  'type' : FreebaseMovieConcept.FILM,                  
-                  'key' : [{'namespace' : key, 'value' : None}],
+                  'type' : FreebaseConcept.FILM,
+                  'key' : [{'namespace' : self.__film_authority_key,
+                      'value' : None}],
                   'limit' : limit,
                   'sort' : 'name'
                   }]
@@ -148,15 +157,14 @@ class FreebaseWrapper:
         response = json.loads(self.__freebase
                               .mqlread(query=json.dumps(query))
                               .execute())
-        
+
         return response['result']
-        
-    
+
     def get_film_description(self, film_id):
         #url = 'https://www.googleapis.com/rpc'
         #requests = [{
-        #  'method': 'freebase.text.get', 
-        #  'apiVersion': 'v1', 
+        #  'method': 'freebase.text.get',
+        #  'apiVersion': 'v1',
         #  'params': {
         #    'id': film_id.split('/')[1:3]
         #  }
