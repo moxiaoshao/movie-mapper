@@ -7,10 +7,23 @@ from SPARQLWrapper import SPARQLWrapper
 from apiclient import discovery
 from apiclient.errors import HttpError
 
-from lmdb import LMDBWrapper, LMDBConcept, LMDBSettings
-from freebase import FreebaseWrapper, FreebaseConcept, FreebaseSettings
-from settings import *
+from lod_dbs.lmdb import LMDBWrapper, LMDBConcept, LMDBSettings
+from lod_dbs.freebase import FreebaseWrapper, FreebaseConcept, FreebaseSettings
+from lod_dbs.settings import Portal
 
+# paths
+LMDB_FREEBASE_ACTORS_FILE = 'out/lmdb_freebase_actors'
+LMDB_FREEBASE_FILMS_FILE = '.out/lmdb_freebase_films' # with actors
+LMDB_FREEBASE_FILMS_TMPFILE = 'out/lmdb__freebase_films.tmp' # without actors
+FREEBASE_LMDB_ACTORS_FILE = 'out/freebase_lmdb_actors'
+FREEBASE_LMDB_FILMS_FILE = 'out/freebase_lmdb_films'
+FREEBASE_IMDB_FILMS_FILE = 'out/freebase_imdb_films'
+FREEBASE_IMDB_ACTORS_FILE = 'out/freebase_imdb_actors'
+
+FREEBASE_LMDB_ACTOR_MAPPING_FILE = 'out/freebase_lmdb_actor_mapping'
+FREEBASE_LMDB_FILM_MAPPING_FILE = 'out/freebase_lmdb_film_mapping'
+FREEBASE_IMDB_ACTOR_MAPPING_FILE = 'out/freebase_imdb_actor_mapping'
+FREEBASE_IMDB_FILM_MAPPING_FILE = 'out/freebase_imdb_film_mapping'
 
 def get_and_persist_lmdb_actors(f):
     """
@@ -455,7 +468,7 @@ if __name__ == "__main__":
 
     # process
     # lmdb <-> freebase stuff
-    #get_and_persist_lmdb_actors(LMDB_FREEBASE_ACTORS_FILE)
+    get_and_persist_lmdb_actors(LMDB_FREEBASE_ACTORS_FILE)
     #get_and_persist_lmdb_films(LMDB_FREEBASE_FILMS_TMPFILE)
     #get_and_persist_lmdb_actors_by_film(LMDB_FREEBASE_FILMS_TMPFILE,
     #                                    LMDB_FREEBASE_FILMS_FILE)
@@ -471,5 +484,5 @@ if __name__ == "__main__":
     #                {'filmid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
 
     # lmdb <-> imdb stuff
-    get_and_persist_freebase_films(FREEBASE_IMDB_FILMS_FILE)
+    #get_and_persist_freebase_films(FREEBASE_IMDB_FILMS_FILE)
     sys.exit(0)
