@@ -196,8 +196,9 @@ class FreebaseWrapper:
         req = urllib2.Request(url, json.dumps(requests), headers)
         response = json.loads(urllib2.urlopen(req).read())
         for i in range(0, len(film_ids)):
-            result[film_ids[i]] = response[i]['result']['result'] \
-                    if 'result' in response[i] else None
+            result[film_ids[i]] = \
+                response[i]['result']['result'].replace('\n','') \
+                if 'result' in response[i] else None
         return result
 
 
