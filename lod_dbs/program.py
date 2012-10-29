@@ -160,7 +160,7 @@ def get_and_persist_freebase_films(f):
     print "loading films from freebase"
     result = []
     try:
-        film_count = freebase.get_count(Portal.IMDB, True)
+        film_count = freebase.get_count(Portal.IMDB, FreebaseConcept.FILM, True)
         print "getting %i films from freebase" % film_count
         with open(f, 'w') as fout:
             portal_key = 'imdb'
@@ -182,9 +182,11 @@ def get_and_persist_freebase_films(f):
 
             i = 0 # no of films read
             cursor = "" # needed for paging
-            while i < film_count:
+            limit = FreebaseSettings.START_PAGE_SIZE
+            got_more = True
+            successful_queries = 0
+            while got_more:
                 loaded = False
-                retry_delay = FreebaseSettings.DEFAULT_DELAY
                 while not loaded:
                     t0 = time.time()
                     try:
@@ -195,26 +197,54 @@ def get_and_persist_freebase_films(f):
                                                       cursor)
                         print "got films, getting descriptions from text api"
                         for film in response[0]:
-                            film['directed_by'] = ",".join([_['name'] for _ in film['directed_by']])
-                            film['written_by'] = ",".join([_['name'] for _ in film['written_by']])
-                            film['produced_by'] = ",".join([_['name'] for _ in film['produced_by']])
-                            film['genre'] = ",".join([_['name'] for _ in film['genre']])
-                            film['actors'] = ",".join([_['actor']['guid'] for _ in film['starring']])
-                            film['description'] = freebase.get_film_description(film['id'])
-                            film[portal_key] = ",".join(film[portal_key])
+                            film['directed_by'] = ",".join(
+                                    [_['name'] if _['name'] is not None else "" for _ in film['directed_by']])
+                            film['written_by'] = ",".join(
+                                    [_['name'] if _['name'] is not None else "" for _ in film['written_by']])
+                            film['produced_by'] = ",".join(
+                                    [_['name'] if _['name'] is not None else "" for _ in film['produced_by']])
+                            film['genre'] = ",".join(
+                                    [_['name'] if _['name'] is not None else "" for _ in film['genre']])
+                            film['actors'] = ",".join(
+                                    [_['actor']['guid'] for _ in film['starring']])
+                            try:
+                                film['description'] = \
+                                    freebase.get_film_description(film['id'])
+                            except HttpError as _:
+                                film['description'] = ""
+                            film['imdb'] = ",".join(
+                                    set([_['value'].rstrip('\n') for _ in film['key']]))
                     except (IOError, HttpError) as _:
-                        retry_delay *= 2  # increase sleep delay in case of connection error
-                        print "a connection error occured," \
-                              " setting retry-delay to %i\n(%s)" \
-                              % (retry_delay, str(_))
+                        if (limit - 50) > FreebaseSettings.MIN_PAGE_SIZE:
+                            limit -= 50
+                        else:
+                            limit = FreebaseSettings.MIN_PAGE_SIZE
+                        print ("Connection error occured!\n" \
+                                + "\twaiting %i seconds to retry\n" \
+                                + "\treducing limit to %i\n" \
+                                + "\t%s") \
+                                % (Freebase.ERROR_DELAY, limit, str(_))
+                        time.sleep(FreebaseSettings.ERROR_DELAY)
+                        successful_queries = 0
                     else:
                         loaded = True
+                        successful_queries += 1
+                        # try to fetch more per query after 10 successful
+                        # queries
+                        if successful_queries == 10:
+                            if (limit + 50) < FreebaseSettings.MAX_PAGE_SIZE:
+                                limit += 50
+                            else:
+                                limit = FreebaseSettings.MAX_PAGE_SIZE
+                            successful_queries = 0
                         for film in response[0]:
+                            # write encoded from utf-8
                             dictwriter.writerow({k:(v.encode('utf8') \
                                                  if isinstance(v, unicode) else v) \
                                                  for k,v in film.items()})
                         cursor = response[1]
-                        i += FreebaseSettings.START_PAGE_SIZE
+                        has_more = cursor is not None
+                        i += limit
                         result += response[0]
                         fout.flush()
                         print "took %.2f seconds" % (time.time() - t0)
@@ -443,5 +473,5 @@ if __name__ == "__main__":
     #                {'filmid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
 
     # lmdb <-> imdb stuff
-    get_and_persist_freebase_films_in_order(FREEBASE_IMDB_FILMS_FILE)
+    get_and_persist_freebase_films(FREEBASE_IMDB_FILMS_FILE)
     sys.exit(0)

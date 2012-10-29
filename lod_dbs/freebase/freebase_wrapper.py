@@ -94,17 +94,13 @@ class FreebaseWrapper:
         query = [{'id': None,
                   'guid': None,
                   'name': None,
-                  'directed_by': [{'name': None}],
-                  'written_by': [{'name': None}],
-                  'produced_by': [{'name': None}],
+                  'directed_by': [{'name': None, 'optional': True}],
+                  'written_by': [{'name': None, 'optional': True}],
+                  'produced_by': [{'name': None, 'optional': True}],
                   'initial_release_date': None,
-                  'genre': [{'name': None}],
+                  'genre': [{'name': None, 'optional': True}],
                   'type': FreebaseConcept.FILM,
                   'starring': [{'actor': {'guid': None,
-                                          # this increases the amount of films
-                                          # dramatically, imdb_ref is more often
-                                          # but buggy
-                                          # 'imdb_ref': []
                                           'key': [{
                                                    'namespace':
                                                    self.__actor_authority_key,
