@@ -1,8 +1,18 @@
-lmdb_freebase_mapper
---------------------
+lod_dbs
+=======
 
-Just a small collection of scripts to load movies and actors from lmdb which have a foaf:page relation to the freebase portal. Each subgraph is selected and persisted locally, the result is a reference mapping and the single datasets can be used to evaluate different matching strategies.
+A collection of classes and functions to work with different movie portals,
+like freebase, imdb or linked moviedatabase.
+
+The need is to select subsets of each movie graph which maps to a subset in
+another movie graph. These reference mappings are then used for further
+evaluation of different matching algorithms.
 
 This is my first project written in python so ... u know :)
 
-And if someone wants to use the scripts or parts of it, feel free to do so.
+Requirements
+------------
+
+- sparqlwrapper
+- imdbpy
+- google-api-python-client
