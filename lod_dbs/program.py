@@ -221,7 +221,7 @@ def get_and_persist_freebase_films(f):
                                 + "\twaiting %i seconds to retry\n" \
                                 + "\treducing limit to %i\n" \
                                 + "\t%s") \
-                                % (Freebase.ERROR_DELAY, limit, str(_))
+                                % (FreebaseSettings.ERROR_DELAY, limit, str(_))
                         time.sleep(FreebaseSettings.ERROR_DELAY)
                         successful_queries = 0
                     else:
