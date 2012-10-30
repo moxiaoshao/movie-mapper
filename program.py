@@ -1,5 +1,6 @@
 import csv
 import time
+from datetime import datetime
 import sys
 import json
 
@@ -203,8 +204,10 @@ def get_and_persist_freebase_films(f):
                 while not loaded:
                     t0 = time.time()
                     try:
-                        print "getting films %i to %i" \
-                              % (i, i + FreebaseSettings.START_PAGE_SIZE)
+                        print "[%s] getting films %i to %i" \
+                                % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                      i,
+                                      i + limit)
                         response = freebase.get_films(Portal.IMDB,
                                                       FreebaseSettings.START_PAGE_SIZE,
                                                       cursor)
@@ -254,7 +257,7 @@ def get_and_persist_freebase_films(f):
                                                  if isinstance(v, unicode) else v) \
                                                  for k,v in film.items()})
                         cursor = response[1]
-                        has_more = cursor is not None
+                        got_more = cursor
                         i += limit
                         result += response[0]
                         fout.flush()
