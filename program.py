@@ -478,8 +478,8 @@ def get_and_persist_imdb_films_by_freebase_films(freebase_films_file, fout):
                                                  for k,v in imdb_film.items()})
                             time.sleep(IMDBSettings.DEFAULT_DELAY)
                             if i % IMDBSettings.PAGE_SIZE == 0:
-                                print 'Films queried: %i (%s)' % (i,
-                                        str(datetime.timedelta(t0, time.time())))
+                                print 'Films queried: %i (%.2f seconds)' % (i,
+                                        (time.time() - t0))
                                 f_out.flush()
 
     except IOError as ioError:
