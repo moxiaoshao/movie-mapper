@@ -3,6 +3,7 @@ import time
 from datetime import datetime
 import sys
 import json
+import datetime
 
 from SPARQLWrapper import SPARQLWrapper
 from apiclient import discovery
@@ -10,19 +11,26 @@ from apiclient.errors import HttpError
 
 from lod_dbs.lmdb import LMDBWrapper, LMDBConcept, LMDBSettings
 from lod_dbs.freebase import FreebaseWrapper, FreebaseConcept, FreebaseSettings
+from lod_dbs.imdb import IMDBWrapper, IMDBSettings
 from lod_dbs.settings import Portal
 
 # paths
 LMDB_FREEBASE_ACTORS_FILE = 'out/lmdb_freebase_actors'
 LMDB_FREEBASE_FILMS_FILE = '.out/lmdb_freebase_films' # with actors
 LMDB_FREEBASE_FILMS_TMPFILE = 'out/lmdb__freebase_films.tmp' # without actors
+
 FREEBASE_LMDB_ACTORS_FILE = 'out/freebase_lmdb_actors'
 FREEBASE_LMDB_FILMS_FILE = 'out/freebase_lmdb_films'
+
 FREEBASE_IMDB_FILMS_FILE = 'out/freebase_imdb_films'
 FREEBASE_IMDB_ACTORS_FILE = 'out/freebase_imdb_actors'
 
+IMDB_FREEBASE_FILMS_FILE = 'out/imdb_freebase_films'
+IMDB_FREEBASE_ACTORS_FILE = 'out/imdb_freebase_actors'
+
 FREEBASE_LMDB_ACTOR_MAPPING_FILE = 'out/freebase_lmdb_actor_mapping'
 FREEBASE_LMDB_FILM_MAPPING_FILE = 'out/freebase_lmdb_film_mapping'
+
 FREEBASE_IMDB_ACTOR_MAPPING_FILE = 'out/freebase_imdb_actor_mapping'
 FREEBASE_IMDB_FILM_MAPPING_FILE = 'out/freebase_imdb_film_mapping'
 
@@ -437,6 +445,55 @@ def get_and_persist_freebase_films_by_lmdb_films(lmdb_films_file, fout):
     else:
         return result
 
+def get_and_persist_imdb_films_by_freebase_films(freebase_films_file, fout):
+    result = []
+    i = 0
+    t0 = time.time()
+    try:
+        print "getting imdb films"
+        with open(freebase_films_file, 'r') as f_in:
+            with open(fout, 'w') as f_out:
+                dictreader = csv.DictReader(f_in, delimiter=';')
+                dictwriter = csv.DictWriter(f_out,
+                        ['imdb_id', 'name', 'initial_release_date',
+                        'directed_by', 'written_by', 'produced_by', 'genre',
+                        'actors', 'descriptions'])
+                dictwriter.writeheader()
+                for film in dictreader:
+                    print '=== film[\'id\']', film['id']
+                    loaded = False
+                    while not loaded:
+                        try:
+                            if ',' in film['imdb']:
+                                imdb_id = film['imdb'].split(',')[0][2:]
+                            else:
+                                imdb_id = film['imdb'][2:]
+                            print '=== imdb_id:', imdb_id
+                            imdb_film = imdb.get_film_by_id(imdb_id)
+                        except:
+                            print 'Unexpected error:', str(sys.exc_info())
+                            time.sleep(IMDBSettings.ERROR_DELAY)
+                        else:
+                            loaded = True
+                            i += 1
+                            dictwriter.writerow({k:(v.encode('utf8') \
+                                                 if isinstance(v, unicode) else v) \
+                                                 for k,v in imdb_film.items()})
+                            time.sleep(IMDBSettings.DEFAULT_DELAY)
+                            if i % IMDBSettings.PAGE_SIZE == 0:
+                                print 'Films queried: %i (%.2f seconds)' % (i,
+                                        (time.time() - t0))
+                                f_out.flush()
+
+    except IOError as ioError:
+        print str(ioError)
+    #t0 = time.time()
+    #matrix = imdb.get_film_by_id('0133093')
+    #t1 = time.time() - t0
+    #for key in matrix.keys():
+    #    print key, '=>', matrix[key]
+    #print "took %.2f seconds to get movie" % t1
+
 def create_mappings(source_file, map_file, key_map):
     try:
         with open(source_file, 'r') as sourcef:
@@ -469,9 +526,12 @@ if __name__ == "__main__":
     # connect to freebase
     freebase = FreebaseWrapper(sys.argv[1])
 
+    # connect to imdb
+    imdb = IMDBWrapper()
+
     # process
     # lmdb <-> freebase stuff
-    get_and_persist_lmdb_actors(LMDB_FREEBASE_ACTORS_FILE)
+    #get_and_persist_lmdb_actors(LMDB_FREEBASE_ACTORS_FILE)
     #get_and_persist_lmdb_films(LMDB_FREEBASE_FILMS_TMPFILE)
     #get_and_persist_lmdb_actors_by_film(LMDB_FREEBASE_FILMS_TMPFILE,
     #                                    LMDB_FREEBASE_FILMS_FILE)
@@ -488,4 +548,6 @@ if __name__ == "__main__":
 
     # lmdb <-> imdb stuff
     #get_and_persist_freebase_films(FREEBASE_IMDB_FILMS_FILE)
+    get_and_persist_imdb_films_by_freebase_films(FREEBASE_IMDB_FILMS_FILE,
+            IMDB_FREEBASE_FILMS_FILE)
     sys.exit(0)
