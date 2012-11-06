@@ -386,7 +386,7 @@ def get_and_persist_freebase_actors_by_guid(guids, fout):
         with open(fout, 'w') as f_out:
             dictwriter = csv.DictWriter(f_out,
                     ['id', 'guid', 'name', 'date_of_birth', 'place_of_birth',
-                        'height_meters', 'weight_kg', 'gender'],
+                        'height_meters', 'weight_kg', 'gender', 'imdb_id'],
                     delimiter=';')
             dictwriter.writeheader()
             i = 0
@@ -399,7 +399,7 @@ def get_and_persist_freebase_actors_by_guid(guids, fout):
                         print ("Connection error occured!\n" \
                                 + "\twaiting %i seconds to retry\n" \
                                 + "\t%s") \
-                                % (FreebaseSettings.ERROR_DELAY, str(_))
+                                % (FreebaseSettings.ERROR_DELAY, str(error))
                         time.sleep(FreebaseSettings.ERROR_DELAY)
                     else:
                         loaded = True
@@ -556,17 +556,21 @@ def create_mappings(source_file, map_file, key_map):
 def get_column_values(filename, column_number, skip_header=False,
         sep_value_by=None):
     result = set()
+    i = 0
     try:
         with open(filename, 'r') as f_in:
             reader = csv.reader(f_in, delimiter=';')
             if skip_header:
                 reader.next()
             for line in reader:
+                i += 1
                 if sep_value_by:
                     line_vals = line[column_number].split(sep_value_by)
                     result = result.union(line_vals)
                 else:
                     result.add(line[column_number])
+                if i % 1000 == 0:
+                    print '=== lines read:', i
     except IOError as ioError:
         print str(ioError)
     else:
@@ -610,6 +614,9 @@ if __name__ == "__main__":
 
     actor_guids = get_column_values(FREEBASE_IMDB_FILMS_FILE, 8,
             skip_header=True, sep_value_by=',')
+    # test with keanu reeves
+    #get_and_persist_freebase_actors_by_guid(["#9202a8c04000641f8000000000021d2a"],
+    #        FREEBASE_IMDB_ACTORS_FILE)
     get_and_persist_freebase_actors_by_guid(actor_guids,
             FREEBASE_IMDB_ACTORS_FILE)
 

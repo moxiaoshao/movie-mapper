@@ -4,4 +4,4 @@ class FreebaseSettings:
     MIN_PAGE_SIZE = 10
 
     DEFAULT_DELAY = 5
-    ERROR_DELAY = 30
+    ERROR_DELAY = 120

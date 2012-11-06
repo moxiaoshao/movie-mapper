@@ -50,6 +50,7 @@ class FreebaseWrapper:
         returns dictionary with the following keys:
         - id
         - guid
+        - imdb_id
         - date_of_birth (optional)
         - place_of_birth (optional)
         - height_meters (optional)
@@ -74,6 +75,8 @@ class FreebaseWrapper:
                         'optional': True},
                     '/people/person/gender': [{'name': None,
                         'optional': True}],
+                    'key': [{'namespace': '/authority/imdb/name',
+                        'value': None}]
                     }]
         response = json.loads(self.__freebase
                               .mqlread(query=json.dumps(query))
@@ -83,6 +86,7 @@ class FreebaseWrapper:
             #print '=== actor:', actor
             result['id'] = actor['id']
             result['guid'] = actor['guid']
+            result['imdb_id'] = actor['key'][0]['value']
             if actor['/people/person/date_of_birth']:
                 result['date_of_birth'] = \
                     actor['/people/person/date_of_birth']['value']
