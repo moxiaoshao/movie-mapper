@@ -37,6 +37,6 @@ class IMDBWrapper:
             if movie.has_key('actors'):
                 result['actors'] = [a.getID() for a in movie['cast']]
             if movie.has_key('plot'):
-                result['description'] = [plot.split('::')[0] for plot in
+                result['descriptions'] = [plot.split('::')[0] for plot in
                         movie['plot']]
         return result

@@ -9,7 +9,7 @@ from apiclient.errors import HttpError
 
 from lod_dbs.lmdb import LMDBWrapper, LMDBConcept, LMDBSettings
 from lod_dbs.freebase import FreebaseWrapper, FreebaseConcept, FreebaseSettings
-from lod_dbs.imdb import IMDBWrapper
+from lod_dbs.imdb import IMDBWrapper, IMDBSettings
 from lod_dbs.settings import Portal
 
 # paths
@@ -442,13 +442,50 @@ def get_and_persist_freebase_films_by_lmdb_films(lmdb_films_file, fout):
         return result
 
 def get_and_persist_imdb_films_by_freebase_films(freebase_films_file, fout):
+    result = []
+    i = 0
+    try:
+        print "getting imdb films"
+        with open(freebase_films_file, 'r') as f_in:
+            with open(fout, 'w') as f_out:
+                dictreader = csv.DictReader(f_in, delimiter=';')
+                dictwriter = csv.DictWriter(f_out,
+                        ['imdb_id', 'name', 'initial_release_date',
+                        'directed_by', 'written_by', 'produced_by', 'genre',
+                        'actors', 'descriptions'])
+                dictwriter.writeheader()
+                for film in dictreader:
+                    print '=== film[\'id\']', film['id']
+                    loaded = False
+                    while not loaded:
+                        try:
+                            #print '===film[\'imdb\']:', film['imdb']
+                            if isinstance(film['imdb'], list):
+                                imdb_id = film['imdb'][0][2:]
+                            else:
+                                imdb_id = film['imdb'][2:]
+                            print '=== imdb_id:', imdb_id
+                            imdb_film = imdb.get_film_by_id(imdb_id)
+                        except:
+                            print 'Unexpected error:', str(sys.exc_info())
+                            time.sleep(IMDBSettings.ERROR_DELAY)
+                        else:
+                            loaded = True
+                            i += 1
+                            dictwriter.writerow(imdb_film)
+                            time.sleep(IMDBSettings.DEFAULT_DELAY)
+                            if i % IMDBSettings.PAGE_SIZE == 0:
+                                print 'Films queried:', i
+                                f_out.flush()
+
+    except IOError as ioError:
+        print str(ioError)
     #t0 = time.time()
     #matrix = imdb.get_film_by_id('0133093')
     #t1 = time.time() - t0
     #for key in matrix.keys():
     #    print key, '=>', matrix[key]
     #print "took %.2f seconds to get movie" % t1
-    pass
 
 def create_mappings(source_file, map_file, key_map):
     try:
