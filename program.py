@@ -457,7 +457,8 @@ def get_and_persist_imdb_films_by_freebase_films(freebase_films_file, fout):
                 dictwriter = csv.DictWriter(f_out,
                         ['imdb_id', 'name', 'initial_release_date',
                         'directed_by', 'written_by', 'produced_by', 'genre',
-                        'actors', 'descriptions'])
+                        'actors', 'descriptions'],
+                        delimiter=';')
                 dictwriter.writeheader()
                 for film in dictreader:
                     print '=== film[\'id\']', film['id']
@@ -476,6 +477,7 @@ def get_and_persist_imdb_films_by_freebase_films(freebase_films_file, fout):
                         else:
                             loaded = True
                             i += 1
+                            imdb_film['imdb_id'] = imdb_id
                             dictwriter.writerow({k:(v.encode('utf8') \
                                                  if isinstance(v, unicode) else v) \
                                                  for k,v in imdb_film.items()})
