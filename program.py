@@ -2,6 +2,7 @@ import csv
 import time
 import sys
 import json
+import datetime
 
 from SPARQLWrapper import SPARQLWrapper
 from apiclient import discovery
@@ -444,6 +445,7 @@ def get_and_persist_freebase_films_by_lmdb_films(lmdb_films_file, fout):
 def get_and_persist_imdb_films_by_freebase_films(freebase_films_file, fout):
     result = []
     i = 0
+    t0 = time.time()
     try:
         print "getting imdb films"
         with open(freebase_films_file, 'r') as f_in:
@@ -459,9 +461,8 @@ def get_and_persist_imdb_films_by_freebase_films(freebase_films_file, fout):
                     loaded = False
                     while not loaded:
                         try:
-                            #print '===film[\'imdb\']:', film['imdb']
-                            if isinstance(film['imdb'], list):
-                                imdb_id = film['imdb'][0][2:]
+                            if ',' in film['imdb']:
+                                imdb_id = film['imdb'].split(',')[0][2:]
                             else:
                                 imdb_id = film['imdb'][2:]
                             print '=== imdb_id:', imdb_id
@@ -472,10 +473,13 @@ def get_and_persist_imdb_films_by_freebase_films(freebase_films_file, fout):
                         else:
                             loaded = True
                             i += 1
-                            dictwriter.writerow(imdb_film)
+                            dictwriter.writerow({k:(v.encode('utf8') \
+                                                 if isinstance(v, unicode) else v) \
+                                                 for k,v in imdb_film.items()})
                             time.sleep(IMDBSettings.DEFAULT_DELAY)
                             if i % IMDBSettings.PAGE_SIZE == 0:
-                                print 'Films queried:', i
+                                print 'Films queried: %i (%s)' % (i,
+                                        str(datetime.timedelta(t0, time.time())))
                                 f_out.flush()
 
     except IOError as ioError:
