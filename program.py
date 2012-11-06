@@ -3,7 +3,6 @@ import time
 from datetime import datetime
 import sys
 import json
-import datetime
 
 from SPARQLWrapper import SPARQLWrapper
 from apiclient import discovery
@@ -380,6 +379,43 @@ def get_and_persist_freebase_films_in_order(f):
     else:
         return result
 
+def get_and_persist_freebase_actors_by_guid(guids, fout):
+    try:
+        n = len(guids)
+        print "getting %i actors from freebase" % n
+        with open(fout, 'w') as f_out:
+            dictwriter = csv.DictWriter(f_out,
+                    ['id', 'guid', 'name', 'date_of_birth', 'place_of_birth',
+                        'height_meters', 'weight_kg', 'gender'],
+                    delimiter=';')
+            dictwriter.writeheader()
+            i = 0
+            for guid in guids:
+                loaded = False
+                while not loaded:
+                    try:
+                        actor = freebase.get_actor_by_guid(guid)
+                    except (IOError, HttpError) as error:
+                        print ("Connection error occured!\n" \
+                                + "\twaiting %i seconds to retry\n" \
+                                + "\t%s") \
+                                % (FreebaseSettings.ERROR_DELAY, str(_))
+                        time.sleep(FreebaseSettings.ERROR_DELAY)
+                    else:
+                        loaded = True
+                        i += 1
+                        if actor:
+                            dictwriter.writerow({k:(v.encode('utf8') \
+                                    if isinstance(v, unicode) else v)
+                                    for k,v in actor.items()})
+                        if i % FreebaseSettings.START_PAGE_SIZE == 0:
+                            print "Actors queried: %i (%.2f%%)" % (i ,
+                                    (i / float(n) * 100))
+                            f_out.flush()
+    except IOError:
+        print sys.exc_info()
+
+
 def get_and_persist_freebase_actors_by_lmdb_actors(lmdb_actors_file, fout):
     i = 0
     result = []
@@ -517,6 +553,25 @@ def create_mappings(source_file, map_file, key_map):
     except IOError as ioError:
         print str(ioError)
 
+def get_column_values(filename, column_number, skip_header=False,
+        sep_value_by=None):
+    result = set()
+    try:
+        with open(filename, 'r') as f_in:
+            reader = csv.reader(f_in, delimiter=';')
+            if skip_header:
+                reader.next()
+            for line in reader:
+                if sep_value_by:
+                    line_vals = line[column_number].split(sep_value_by)
+                    result = result.union(line_vals)
+                else:
+                    result.add(line[column_number])
+    except IOError as ioError:
+        print str(ioError)
+    else:
+        return result
+
 # hit and run
 if __name__ == "__main__":
     if len(sys.argv) <= 1:
@@ -548,8 +603,14 @@ if __name__ == "__main__":
     #                FREEBASE_LMDB_FILM_MAPPING_FILE,
     #                {'filmid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
 
-    # lmdb <-> imdb stuff
+    # freebase <-> imdb stuff
     #get_and_persist_freebase_films(FREEBASE_IMDB_FILMS_FILE)
-    get_and_persist_imdb_films_by_freebase_films(FREEBASE_IMDB_FILMS_FILE,
-            IMDB_FREEBASE_FILMS_FILE)
+    #get_and_persist_imdb_films_by_freebase_films(FREEBASE_IMDB_FILMS_FILE,
+    #        IMDB_FREEBASE_FILMS_FILE)
+
+    actor_guids = get_column_values(FREEBASE_IMDB_FILMS_FILE, 8,
+            skip_header=True, sep_value_by=',')
+    get_and_persist_freebase_actors_by_guid(actor_guids,
+            FREEBASE_IMDB_ACTORS_FILE)
+
     sys.exit(0)

@@ -47,15 +47,56 @@ class FreebaseWrapper:
 
         guid is the freebase hex guid
 
+        returns dictionary with the following keys:
+        - id
+        - guid
+        - date_of_birth (optional)
+        - place_of_birth (optional)
+        - height_meters (optional)
+        - weight_kg (optional)
+        - gender (optional)
+
         """
         if guid[0] != '#':
             guid = '#' + guid
-        query = [{'guid' : '%s' % guid,
-                  'name' : None}]
+        result = {}
+
+        query = [{'type': '/film/actor',
+                    'id': None,
+                    'guid': guid,
+                    '/people/person/date_of_birth': { 'value': None,
+                        'optional': True},
+                    '/people/person/place_of_birth': { 'name': None,
+                        'optional': True},
+                    '/people/person/height_meters': {'value': None,
+                        'optional': True},
+                    '/people/person/weight_kg': {'value': None,
+                        'optional': True},
+                    '/people/person/gender': [{'name': None,
+                        'optional': True}],
+                    }]
         response = json.loads(self.__freebase
                               .mqlread(query=json.dumps(query))
                               .execute())
-        return response['result'][0] if len(response['result']) > 0 else None
+        if len(response['result']) > 0:
+            actor = response['result'][0]
+            #print '=== actor:', actor
+            result['id'] = actor['id']
+            result['guid'] = actor['guid']
+            if actor['/people/person/date_of_birth']:
+                result['date_of_birth'] = \
+                    actor['/people/person/date_of_birth']['value']
+            if actor['/people/person/place_of_birth']:
+                result['place_of_birth'] = \
+                    actor['/people/person/place_of_birth']['name']
+            if actor['/people/person/weight_kg']:
+                result['weight_kg'] = \
+                        actor['/people/person/weight_kg']['value']
+            if actor['/people/person/gender']:
+                result['gender'] = \
+                        ','.join([g['name'] for g in actor['/people/person/gender']])
+            #print '=== actor(edit):', result
+        return result
 
     def get_film_by_guid(self, guid):
         """
