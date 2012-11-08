@@ -415,37 +415,6 @@ def get_and_persist_freebase_actors_by_guid(guids, fout):
     except IOError:
         print sys.exc_info()
 
-def get_and_persist_freebase_actors_by_lmdb_actors(lmdb_actors_file, fout):
-    i = 0
-    result = []
-    try:
-        with open(lmdb_actors_file, 'r') as fin:
-            with open(fout, 'w') as fOut:
-                dictreader = csv.DictReader(fin,
-                                            delimiter=';')
-                dictwriter = csv.DictWriter(fOut,
-                                            ['guid', 'name', 'lmdb'],
-                                            delimiter=';')
-                dictwriter.writeheader()
-
-                for actor in dictreader:
-                    i += 1
-                    freebase_actor = freebase.get_actor_by_guid( \
-                                                        actor['freebase_guid'])
-                    if freebase_actor is not None:
-                        freebase_actor['lmdb'] = actor['actorid']
-                        dictwriter.writerow({k:(v.encode('utf8') \
-                                             if isinstance(v, unicode) else v) \
-                                             for k,v in freebase_actor.items()})
-                    result += freebase_actor
-                    if i % LMDBSettings.PAGE_SIZE == 0:
-                        print "Actors queried: %i   \r" % i
-                        fOut.flush()
-    except IOError as ioError:
-        print str(ioError)
-    else:
-        return result
-
 def get_and_persist_freebase_films_by_lmdb_films(lmdb_films_file, fout):
     result = []
     i = 0
@@ -625,8 +594,10 @@ if __name__ == "__main__":
     #get_and_persist_lmdb_films(LMDB_FREEBASE_FILMS_TMPFILE)
     #get_and_persist_lmdb_actors_by_film(LMDB_FREEBASE_FILMS_TMPFILE,
     #                                    LMDB_FREEBASE_FILMS_FILE)
-    #get_and_persist_freebase_actors_by_lmdb_actors(LMDB_FREEBASE_ACTORS_FILE,
-    #                                               FREEBASE_LMDB_ACTORS_FILE)
+    freebase_actor_guids = get_column_values(LMDB_FREEBASE_ACTORS_FILE, 2,
+            skip_header=True)
+    get_and_persist_freebase_actors_by_guid(freebase_actor_guids,
+            FREEBASE_LMDB_ACTORS_FILE)
     #get_and_persist_freebase_films_by_lmdb_films(LMDB_FREEBASE_FILMS_FILE,
     #                                             FREEBASE_LMDB_FILMS_FILE)
     #create_mappings(LMDB_FREEBASE_ACTORS_FILE,
@@ -656,9 +627,9 @@ if __name__ == "__main__":
 
     # Get IMDb actors by their corresponding freebase actor
 
-    imdb_actor_ids = get_column_values(FREEBASE_IMDB_ACTORS_FILE, 8,
-            skip_header=True)
-    get_and_persist_imdb_actors_by_id(imdb_actor_ids,
-            IMDB_FREEBASE_ACTORS_FILE)
+    #imdb_actor_ids = get_column_values(FREEBASE_IMDB_ACTORS_FILE, 8,
+    #        skip_header=True)
+    #get_and_persist_imdb_actors_by_id(imdb_actor_ids,
+    #        IMDB_FREEBASE_ACTORS_FILE)
 
     sys.exit(0)
