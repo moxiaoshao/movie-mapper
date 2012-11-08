@@ -51,6 +51,7 @@ class FreebaseWrapper:
         - id
         - guid
         - imdb_id
+        - name
         - date_of_birth (optional)
         - place_of_birth (optional)
         - height_meters (optional)
@@ -65,6 +66,7 @@ class FreebaseWrapper:
         query = [{'type': '/film/actor',
                     'id': None,
                     'guid': guid,
+                    'name': None,
                     '/people/person/date_of_birth': { 'value': None,
                         'optional': True},
                     '/people/person/place_of_birth': { 'name': None,
@@ -87,6 +89,7 @@ class FreebaseWrapper:
             result['id'] = actor['id']
             result['guid'] = actor['guid']
             result['imdb_id'] = actor['key'][0]['value']
+            result['name'] = actor['name']
             if actor['/people/person/date_of_birth']:
                 result['date_of_birth'] = \
                     actor['/people/person/date_of_birth']['value']
