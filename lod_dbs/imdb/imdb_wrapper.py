@@ -4,6 +4,33 @@ class IMDBWrapper:
     def __init__(self):
         self.__ia = IMDb()
 
+    def get_actor_by_id(self, actor_id):
+        """
+        returns dictionary with the following keys:
+        - name
+        - date_of_birth (optional)
+        - place_of_birth (optional)
+        - height_meters (optional)
+        """
+        result = {}
+        actor = self.__ia.get_person(actor_id)
+        if actor:
+            if actor.has_key('name'):
+                result['name'] = actor['name']
+            if actor.has_key('birth date'):
+                result['date_of_birth'] = actor['birth date']
+            if actor.has_key('birth notes'):
+                result['place_of_birth'] = actor['birth notes']
+            if actor.has_key('height'):
+                result['height'] = actor['height']
+            if actor.has_key('mini biography'):
+                result['biographies'] = [a.split('::')[0] for a in \
+                        actor['mini biography']]
+            #for key in actor.keys():
+            #    print '\n', key, '=>', actor[key]
+        return result
+
+
     def get_film_by_id(self, film_id):
         """
         Takes an imdb film id and returns a dictionary with information

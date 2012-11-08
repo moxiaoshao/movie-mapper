@@ -415,7 +415,6 @@ def get_and_persist_freebase_actors_by_guid(guids, fout):
     except IOError:
         print sys.exc_info()
 
-
 def get_and_persist_freebase_actors_by_lmdb_actors(lmdb_actors_file, fout):
     i = 0
     result = []
@@ -525,12 +524,42 @@ def get_and_persist_imdb_films_by_freebase_films(freebase_films_file, fout):
 
     except IOError as ioError:
         print str(ioError)
-    #t0 = time.time()
-    #matrix = imdb.get_film_by_id('0133093')
-    #t1 = time.time() - t0
-    #for key in matrix.keys():
-    #    print key, '=>', matrix[key]
-    #print "took %.2f seconds to get movie" % t1
+
+def get_and_persist_imdb_actors_by_id(ids, fout):
+    try:
+        n = len(ids)
+        print "getting %i actors from imdb" % n
+        with open(fout, 'w') as f_out:
+            dictwriter = csv.DictWriter(f_out,
+                ['id', 'name', 'date_of_birth', 'place_of_birth', 'height',
+                    'biographies'], delimiter=';')
+            dictwriter.writeheader()
+            i = 0
+            for imdb_id in ids:
+                loaded = False
+                try:
+                    imdb_id = imdb_id[2:] # strip the nm prefix
+                    actor = imdb.get_actor_by_id(imdb_id)
+                except (IOError, HttpError) as error:
+                    print ("Connection error occured!\n" \
+                        + "\twaiting %i seconds to retry\n" \
+                            + "\t%s") \
+                            % (IMDBSettings.ERROR_DELAY, str(error))
+                    time.sleep(IMDBSettings.ERROR_DELAY)
+                else:
+                    loaded = True
+                    i += 1
+                    if actor:
+                        actor['id'] = imdb_id
+                        dictwriter.writerow({k:(v.encode('utf8') \
+                                if isinstance(v, unicode) else v)
+                                for k,v in actor.items()})
+                    if i % IMDBSettings.PAGE_SIZE == 0:
+                        print "Actors queried: %i (%.2f%%)" % (i,
+                                (i / float(n) * 100))
+                        f_out.flush()
+    except IOError:
+        print sys.exc_info()
 
 def create_mappings(source_file, map_file, key_map):
     try:
@@ -607,17 +636,29 @@ if __name__ == "__main__":
     #                FREEBASE_LMDB_FILM_MAPPING_FILE,
     #                {'filmid' : 'lmdb_id', 'freebase_guid' : 'freebase_guid'})
 
-    # freebase <-> imdb stuff
+    # freebase <-> imdb region
+
+    # Get freebase films which have an imdb id
+
     #get_and_persist_freebase_films(FREEBASE_IMDB_FILMS_FILE)
+
+    # Get IMDb films by their corresponding freebase film
+
     #get_and_persist_imdb_films_by_freebase_films(FREEBASE_IMDB_FILMS_FILE,
     #        IMDB_FREEBASE_FILMS_FILE)
 
-    actor_guids = get_column_values(FREEBASE_IMDB_FILMS_FILE, 8,
-            skip_header=True, sep_value_by=',')
-    # test with keanu reeves
-    #get_and_persist_freebase_actors_by_guid(["#9202a8c04000641f8000000000021d2a"],
+    # Get freebase actors which appear in previously collected films
+
+    #freebase_actor_guids = get_column_values(FREEBASE_IMDB_FILMS_FILE, 8,
+    #        skip_header=True, sep_value_by=',')
+    #get_and_persist_freebase_actors_by_guid(freebase_actor_guids,
     #        FREEBASE_IMDB_ACTORS_FILE)
-    get_and_persist_freebase_actors_by_guid(actor_guids,
-            FREEBASE_IMDB_ACTORS_FILE)
+
+    # Get IMDb actors by their corresponding freebase actor
+
+    imdb_actor_ids = get_column_values(FREEBASE_IMDB_ACTORS_FILE, 8,
+            skip_header=True)
+    get_and_persist_imdb_actors_by_id(imdb_actor_ids,
+            IMDB_FREEBASE_ACTORS_FILE)
 
     sys.exit(0)
