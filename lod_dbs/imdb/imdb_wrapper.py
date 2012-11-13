@@ -24,10 +24,10 @@ class IMDBWrapper:
             if actor.has_key('height'):
                 result['height'] = actor['height']
             if actor.has_key('mini biography'):
-                result['biographies'] = [a.split('::')[0] for a in \
-                        actor['mini biography']]
-            #for key in actor.keys():
-            #    print '\n', key, '=>', actor[key]
+                result['biographies'] = []
+                for bio in actor['mini biography']:
+                    if not type(bio) is dict:
+                        result['biographies'].append(bio.split('::')[0])
         return result
 
 

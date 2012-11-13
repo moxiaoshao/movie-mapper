@@ -508,6 +508,9 @@ def get_and_persist_imdb_actors_by_id(ids, fout):
                 loaded = False
                 try:
                     imdb_id = imdb_id[2:] # strip the nm prefix
+                    # in some cases there are two ids bound to one
+                    if 'nm' in imdb_id:
+                        imdb_id = imdb_id[:imdb_id.find('nm')]
                     actor = imdb.get_actor_by_id(imdb_id)
                 except (IOError, HttpError) as error:
                     print ("Connection error occured!\n" \
@@ -598,10 +601,10 @@ if __name__ == "__main__":
     #get_and_persist_lmdb_films(LMDB_FREEBASE_FILMS_TMPFILE)
     #get_and_persist_lmdb_actors_by_film(LMDB_FREEBASE_FILMS_TMPFILE,
     #                                    LMDB_FREEBASE_FILMS_FILE)
-    freebase_actor_guids = get_column_values(LMDB_FREEBASE_ACTORS_FILE, 2,
-            skip_header=True)
-    get_and_persist_freebase_actors_by_guid(freebase_actor_guids,
-            FREEBASE_LMDB_ACTORS_FILE)
+    #freebase_actor_guids = get_column_values(LMDB_FREEBASE_ACTORS_FILE, 2,
+    #        skip_header=True)
+    #get_and_persist_freebase_actors_by_guid(freebase_actor_guids,
+    #        FREEBASE_LMDB_ACTORS_FILE)
     #get_and_persist_freebase_films_by_lmdb_films(LMDB_FREEBASE_FILMS_FILE,
     #                                             FREEBASE_LMDB_FILMS_FILE)
     #create_mappings(LMDB_FREEBASE_ACTORS_FILE,
@@ -635,5 +638,6 @@ if __name__ == "__main__":
     #        skip_header=True)
     #get_and_persist_imdb_actors_by_id(imdb_actor_ids,
     #        IMDB_FREEBASE_ACTORS_FILE)
+    #print imdb.get_actor_by_id('0000411')
 
     sys.exit(0)
