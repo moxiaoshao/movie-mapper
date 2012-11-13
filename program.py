@@ -546,6 +546,10 @@ def get_and_persist_imdb_actors_by_id(ids, fout):
                             + "\t%s") \
                             % (IMDBSettings.ERROR_DELAY, str(error))
                     time.sleep(IMDBSettings.ERROR_DELAY)
+                except AttributeError as error:
+                    print "Attribute error. imdb_id: ", imdb_id
+                    print str(error)
+                    continue
                 else:
                     loaded = True
                     i += 1
